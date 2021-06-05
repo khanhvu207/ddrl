@@ -1,3 +1,3 @@
-# Distributed Deep Reinforcement Learning framework with GUI Monitoring
+## Distributed Deep Reinforcement Learning with GUI Monitoring
 
 Summer project 2021 :)  

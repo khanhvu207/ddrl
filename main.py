@@ -5,13 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import deque
 
-def run(env_name, max_eps=500, max_t=512):
+def run(env_name, max_eps=1000, max_t=512, batch_size=1024):
     scores = []
     means = []
     scores_window = deque(maxlen=100)
-
     env = gym.make(env_name)  
-    agent = Agent(state_size=8, action_size=2)
+    obs_dim = env.observation_space.shape[0]
+    act_dim = env.action_space.shape[0]
+    agent = Agent(state_size=obs_dim, action_size=act_dim)
     
     for i in range(max_eps):
         trajectory = {
@@ -22,35 +23,38 @@ def run(env_name, max_eps=500, max_t=512):
             'rewards': [],
             'dones': [],
         }
-        state = env.reset()
-        score = 0
-        for t in range(max_t):
-            # env.render()
-            action, log_prob, value = agent.act(state)
-            observation, reward, done, info = env.step(action)
-            trajectory['states'].append(state)
-            trajectory['actions'].append(action)
-            trajectory['log_probs'].append(log_prob)
-            trajectory['values'].append(value)
-            trajectory['rewards'].append(reward)
-            trajectory['dones'].append(done)
-            score += reward
-            state = observation
-            if done:
-                break
+
+        total_t = 0
+        while total_t < batch_size:
+            eps_reward = []
+            score = 0
+            state = env.reset()
+            agent.noise_reset()
+            for t in range(max_t):
+                # env.render()
+                action, log_prob, value = agent.act(state, is_train=False)
+                observation, reward, done, info = env.step(action)
+                trajectory['states'].append(state)
+                trajectory['actions'].append(action)
+                trajectory['log_probs'].append(log_prob)
+                trajectory['values'].append(value)
+                eps_reward.append(reward)
+                trajectory['dones'].append(done)
+                score += reward
+                total_t += 1
+                state = observation
+                if done:
+                    break
+            trajectory['rewards'].append(eps_reward)
+            scores.append(score)
+            scores_window.append(score)
         
-        # Monitor
-        scores.append(score)
-        scores_window.append(score)
         mean_score = np.mean(scores_window)
         means.append(mean_score)
         print(f"\rEpisode: {i}, Average score: {mean_score:.2f}")
-
         if mean_score >= 200:
             print('Solved!')
             break
-
-        # Learn
         agent.learn(trajectory)
 
     env.close()

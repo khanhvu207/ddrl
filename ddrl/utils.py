@@ -7,7 +7,7 @@ class OUNoise:
         Ornstein-Uhlenbeck process.
         Reference: https://github.com/xkiwilabs/Multi-Agent-DDPG-using-PTtorch-and-ML-Agents/blob/master/OUNoise.py
     """
-    def __init__(self, size, seed, mu=0.0, theta=0.1, sigma=.2, sigma_min=.1, sigma_decay=.99):
+    def __init__(self, size, seed, mu=0.0, theta=0.05, sigma=.2, sigma_min=.1, sigma_decay=.99):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta

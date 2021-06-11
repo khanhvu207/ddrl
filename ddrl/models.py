@@ -5,7 +5,7 @@ import torch.nn.functional as F
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ActorNetwork(nn.Module):
-	def __init__(self, state_size, action_size, seed=2021, hidden_size1=256, hidden_size2=256, hidden_size3=64):
+	def __init__(self, state_size, action_size, seed=2021, hidden_size1=128, hidden_size2=128, hidden_size3=64):
 		super(ActorNetwork, self).__init__()
 		self.seed = torch.manual_seed(seed)
 		self.fc1 = nn.Linear(state_size, hidden_size1)
@@ -27,7 +27,7 @@ class ActorNetwork(nn.Module):
 		return action, log_prob
 
 class CriticNetwork(nn.Module):
-	def __init__(self, state_size, seed=2021, hidden_size1=256, hidden_size2=256, hidden_size3=64):
+	def __init__(self, state_size, seed=2021, hidden_size1=128, hidden_size2=128, hidden_size3=64):
 		super(CriticNetwork, self).__init__()
 		self.seed = torch.manual_seed(seed)
 		self.fc1 = nn.Linear(state_size, hidden_size1)

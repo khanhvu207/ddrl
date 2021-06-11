@@ -1,4 +1,5 @@
 from .models import *
+from .utils import *
 
 import torch
 import numpy as np
@@ -13,9 +14,9 @@ class Agent:
         
 
         # Hyperparams
-        self.gamma = 0.95
+        self.gamma = 0.99
         self.eps = 1e-10
-        self.learning_steps = 3
+        self.learning_steps = 5
         self.clip = 0.15
         self.lr = 0.0001
 
@@ -26,21 +27,29 @@ class Agent:
         # Optimizers
         self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr)
         self.critic_optim = Adam(self.Critic.parameters(), lr=self.lr)
-        
 
-    def act(self, state):
+        # Exploration noise
+        self.ou_noise = OUNoise(size=action_size, seed=2021)
+
+    def noise_reset(self):
+        self.ou_noise.reset()
+
+    def act(self, state, is_train=False):
         state = torch.Tensor(state).to(device)
         state = torch.unsqueeze(state, dim=0)
         
         # Get action and state's value
         self.Actor.eval()
         self.Critic.eval()
-        action, log_prob = self.Actor(state)
-        value = self.Critic(state)
+        with torch.no_grad():
+            action, log_prob = self.Actor(state)
+            value = self.Critic(state)
         self.Actor.train()
         self.Critic.train()
 
         action = torch.squeeze(action).cpu().detach().numpy()
+        if is_train: 
+            action += self.ou_noise.sample()
         log_prob = log_prob.cpu().detach().numpy()
         value = value.cpu().detach().numpy()
         return action, log_prob, value
@@ -92,10 +101,11 @@ class Agent:
 
     def compute_reward_to_go(self, rewards):
         rw2go = []
-        discounted_reward = 0
-        for reward in reversed(rewards):
-            discounted_reward = reward + discounted_reward * self.gamma
-            rw2go.append(discounted_reward)
+        for eps_reward in reversed(rewards):
+            discounted_reward = 0
+            for reward in reversed(eps_reward):
+                discounted_reward = reward + discounted_reward * self.gamma
+                rw2go.append(discounted_reward)
         return torch.Tensor(rw2go[::-1])
     
     def save_weights(self):

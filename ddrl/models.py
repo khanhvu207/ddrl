@@ -10,16 +10,14 @@ class ActorNetwork(nn.Module):
 		self.seed = torch.manual_seed(seed)
 		self.fc1 = nn.Linear(state_size, hidden_size1)
 		self.fc2 = nn.Linear(hidden_size1, hidden_size2)
-		# self.fc3 = nn.Linear(hidden_size2, hidden_size3)
-		self.fc4 = nn.Linear(hidden_size2, action_size)
+		self.fc3 = nn.Linear(hidden_size2, action_size)
 		self.cov_var = torch.full(size=(action_size,), fill_value=0.5)
 		self.cov_mat = torch.diag(self.cov_var).to(device)
 
 	def forward(self, state, action=None):
 		x = F.relu(self.fc1(state))
 		x = F.relu(self.fc2(x))
-		# x = F.relu(self.fc3(x))
-		x = torch.tanh(self.fc4(x))
+		x = torch.tanh(self.fc3(x))
 		dist = torch.distributions.MultivariateNormal(x, self.cov_mat)
 		if action is None:
 			action = dist.sample()
@@ -32,12 +30,10 @@ class CriticNetwork(nn.Module):
 		self.seed = torch.manual_seed(seed)
 		self.fc1 = nn.Linear(state_size, hidden_size1)
 		self.fc2 = nn.Linear(hidden_size1, hidden_size2)
-		# self.fc3 = nn.Linear(hidden_size2, hidden_size3)
-		self.fc4 = nn.Linear(hidden_size2, 1)
+		self.fc3 = nn.Linear(hidden_size2, 1)
 
 	def forward(self, state):
 		x = F.relu(self.fc1(state))
 		x = F.relu(self.fc2(x))
-		# x = F.relu(self.fc3(x))
-		x = self.fc4(x)
+		x = self.fc3(x)
 		return x

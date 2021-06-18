@@ -1,4 +1,7 @@
+import bz2
+import json
 import time
+import pickle
 import socket
 import concurrent.futures 
 from datetime import datetime
@@ -7,10 +10,9 @@ from .agent import *
 
 class Learner:
     def __init__(self):
-        # self.agent = Agent(state_size=8, action_size=4) 
-        
+        self.agent = Agent(state_size=8, action_size=4) 
+        self.data_string = pickle.dumps(self.agent.Actor.state_dict())
         self.executor = concurrent.futures.ThreadPoolExecutor()
-
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
@@ -25,7 +27,10 @@ class Learner:
         while True:
             client, address = self.server.accept()
             print(f'Client {address[0]}:{address[1]} is connecting...')
-            client.sendall('Connected to server...'.encode('utf-8'))
+            # client.sendall('Connected to server...'.encode('utf-8'))
+            msg = self.data_string
+            msg = bytes(f"{len(msg):<{10}}", 'utf-8') + msg
+            client.sendall(msg)
             self.executor.submit(self._new_worker_handler, client, address)
 
     def _new_worker_handler(self, client, address):

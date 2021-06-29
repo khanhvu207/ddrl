@@ -22,4 +22,5 @@ learner:
 worker:
   max_t: 512
   batch_size: 4096
+  save_every: 25
   

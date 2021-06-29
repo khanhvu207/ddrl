@@ -34,7 +34,7 @@ class Worker:
         self._networks_lock = threading.Lock()
 
         # Monitoring
-        self.update_count = 0
+        self.eps_count = 0
         self.has_weight = False
         self.scores = []
         self.means = []
@@ -116,8 +116,12 @@ class Worker:
 
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
-                print(f"Average score: {mean_score:.2f}")
+                print(f"Episode {self.eps_count}, Average score: {mean_score:.2f}")
+                self.eps_count += 1
                 self._send_collected_experience(trajectory)
+
+                if self.eps_count % self.config["worker"]["save_every"] == 0:
+                    self.agent.save_weights()
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

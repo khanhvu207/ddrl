@@ -58,12 +58,7 @@ class Agent:
             Proximal Policy Optimization
             Pseudocode: https://spinningup.openai.com/en/latest/algorithms/ppo.html
         """
-        states, actions, log_probs, rewards2go = minibatch
-        with torch.no_grad():
-            self.Critic.eval()
-            values = self.Critic(states)
-            self.Critic.train()
-        values = torch.squeeze(values).to(device)
+        states, actions, log_probs, values, rewards2go  = minibatch
         
         # 5. Compute avantages
         advantages = rewards2go - values

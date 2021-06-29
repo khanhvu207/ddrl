@@ -19,12 +19,17 @@ class Worker:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._connect_to_server()
         self.executor.submit(self._listen_to_server)
-        self.has_weight = False
-        # self.executor.submit(self._send_msg_to_server)
-
-        # Threadlocks
+        
+        # Locks
         self._networks_lock = threading.Lock()
 
+        # Monitoring
+        self.update_count = 0
+        self.has_weight = False
+        self.scores = []
+        self.means = []
+        self.scores_window = deque(maxlen=100)
+        
     def _connect_to_server(self, ip='127.0.0.1', port=23333):
         self.s.connect((ip, port))
     
@@ -38,12 +43,12 @@ class Worker:
                 if len(msg):
                     if new_msg:
                         msg_len = int(msg[:15])
-                        print(f'Message length: {msg_len}')
+                        # print(f'Message length: {msg_len}')
                         msg = msg[15:]
                         new_msg = False  
                     data += msg
                     if len(data) == msg_len:
-                        print('Full message received')
+                        # print('Full message received')
                         state_dicts = pickle.loads(data)
                         with self._networks_lock:
                             self._sync(state_dicts)
@@ -55,18 +60,15 @@ class Worker:
     def _sync(self, network_weights):
         self.agent.sync(actor_weight=network_weights['actor'], critic_weight=network_weights['critic'])
         self.has_weight = True
+        self.update_count += 1
         print('Weights synced!')
     
     def evaluate(self, max_t=256, batch_size=1024):
         while True:
             if not self.has_weight:  
                 continue
-            time.sleep(0)
+            time.sleep(0.01)
             with self._networks_lock:
-                print("Evaluating...")  
-                scores = []
-                means = []
-                scores_window = deque(maxlen=100)
                 trajectory = {
                     'states': [],
                     'actions': [],
@@ -97,11 +99,13 @@ class Worker:
                         if done:
                             break
                     trajectory['rewards'].append(eps_reward)
-                    scores.append(score)
-                    scores_window.append(score)
-                mean_score = np.mean(scores_window)
-                means.append(mean_score)
+                    self.scores.append(score)
+                    self.scores_window.append(score)
+                
+                mean_score = np.mean(self.scores_window)
+                self.means.append(mean_score)
                 print(f"Average score: {mean_score:.2f}")
+
                 self._send_collected_experience(trajectory)
     
     def _send_collected_experience(self, trajectory):

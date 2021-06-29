@@ -61,7 +61,7 @@ class Worker:
         while True:
             if not self.has_weight:  
                 continue
-            time.sleep(1)
+            time.sleep(0)
             with self._networks_lock:
                 print("Evaluating...")  
                 scores = []

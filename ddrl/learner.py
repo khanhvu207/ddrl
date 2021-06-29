@@ -61,7 +61,7 @@ class Learner:
     
     def _periodic_synchronizer(self, client):
         while True:
-            time.sleep(15)
+            time.sleep(30)
             self.send_weights(client)
 
     def _worker_handler(self, client, address):
@@ -92,7 +92,7 @@ class Learner:
     
     def step(self):
         while True:
-            time.sleep(5)
+            time.sleep(0.5)
             with self._batcher_lock:
                 with self._networks_lock:
                     if len(self.batcher) >= 1024:

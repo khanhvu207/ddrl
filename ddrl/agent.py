@@ -53,18 +53,17 @@ class Agent:
         value = value.cpu().detach().numpy()
         return action, log_prob, value
     
-    def learn(self, trajectory):
+    def learn(self, minibatch):
         """
             Proximal Policy Optimization
             Pseudocode: https://spinningup.openai.com/en/latest/algorithms/ppo.html
         """
-        states = torch.Tensor(trajectory['states']).to(device)
-        actions = torch.Tensor(trajectory['actions']).to(device)
-        log_probs = torch.squeeze(torch.Tensor(trajectory['log_probs'])).to(device)
-        values = torch.squeeze(torch.Tensor(trajectory['values'])).to(device)
-        
-        # 4. Compute reward-to-go 
-        rewards2go = self.compute_reward_to_go(trajectory['rewards']).to(device)
+        states, actions, log_probs, rewards2go = minibatch
+        with torch.no_grad():
+            self.Critic.eval()
+            values = self.Critic(states)
+            self.Critic.train()
+        values = torch.squeeze(values).to(device)
         
         # 5. Compute avantages
         advantages = rewards2go - values
@@ -114,5 +113,8 @@ class Agent:
     def get_weights(self):
         return self.Actor.state_dict(), self.Critic.state_dict()
 
+    def sync(self, actor_weight, critic_weight):
+        self.Actor.load_state_dict(actor_weight)
+        self.Critic.load_state_dict(critic_weight)
 
         

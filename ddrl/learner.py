@@ -4,10 +4,12 @@ import json
 import time
 import pickle
 import socket
+import threading
 import concurrent.futures 
 from datetime import datetime
 
-from .agent import *
+from .agent import Agent
+from .batcher import Batcher
 
 class Learner:
     def __init__(self, env_name):
@@ -17,12 +19,15 @@ class Learner:
         self.env.close()
 
         self.agent = Agent(state_size=self.obs_dim, action_size=self.act_dim) 
-        self.data_string = pickle.dumps(self.agent.Actor.state_dict())
-        
+        self.batcher = Batcher()
+
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
+
+        # Threadlocks
+        self._batcher_lock = threading.Lock()
 
     def _bind_server(self, ip='127.0.0.1', port=23333):
         self.server.bind((ip, port))
@@ -49,23 +54,38 @@ class Learner:
             client, address = self.server.accept()
             print(f'Client {address[0]}:{address[1]} is connecting...')
             self.send_weights(client)
-            self.executor.submit(self._new_worker_handler, client, address)
+            self.executor.submit(self._worker_handler, client, address)
 
-    def _new_worker_handler(self, client, address):
+    def _worker_handler(self, client, address):
         client_ip, client_port = address
+        new_msg = True
+        data = b''
         while True:
             msg = client.recv(4096)
             if len(msg):
-                msg = msg.decode('utf-8')
-                print(f'>From {client_ip}:{client_port}: {msg}')
-                if msg == 'quit':
-                    break
+                if new_msg:
+                    msg_len = int(msg[:15])
+                    print(f'Message length: {msg_len}')
+                    msg = msg[15:]
+                    new_msg = False  
+                
+                data += msg
+                
+                if len(data) == msg_len:
+                    print('Full message received')
+                    batch = pickle.loads(data)
+                    with self._batcher_lock:
+                        self.batcher.add(batch)                    
+                    new_msg = True
+                    data = b''
+
         print(f'{client_ip}:{client_port} disconnected!')
         client.close()
     
     def step(self):
         while True:
-            time.sleep(1)
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            print("Current Time =", current_time)
+            time.sleep(5)
+            with self._batcher_lock:
+                if len(self.batcher) >= 1024:
+                    print("Learning...")
+                    self.agent.learn(self.batcher.sample())

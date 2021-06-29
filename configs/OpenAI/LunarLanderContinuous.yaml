@@ -18,3 +18,8 @@ learner:
 
   utils:
     seed: 2021
+
+worker:
+  max_t: 512
+  batch_size: 4096
+  

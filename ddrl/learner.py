@@ -32,15 +32,14 @@ class Learner:
 
     def _get_weights(self):
         actor_weight, critic_weight = self.agent.get_weights()
-        return actor_weight, critic_weight
+        weight_dict = {
+            'actor': actor_weight,
+            'critic': critic_weight
+        }
+        return weight_dict
 
     def send_weights(self, client):
-        actor_weight_string, critic_weight_string = self._get_weights()
-        weight_dict = {
-            'actor': actor_weight_string,
-            'critic': critic_weight_string
-        }
-        data_string = pickle.dumps(weight_dict)
+        data_string = pickle.dumps(self._get_weights())
         msg = bytes(f"{len(data_string):<{15}}", 'utf-8') + data_string
         client.sendall(msg)
         print('Weights sent!')

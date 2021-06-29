@@ -27,7 +27,6 @@ class Learner:
         while True:
             client, address = self.server.accept()
             print(f'Client {address[0]}:{address[1]} is connecting...')
-            # client.sendall('Connected to server...'.encode('utf-8'))
             msg = self.data_string
             msg = bytes(f"{len(msg):<{10}}", 'utf-8') + msg
             client.sendall(msg)

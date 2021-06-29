@@ -20,7 +20,7 @@ class Worker:
         msg_len = 0
         while True:
             try:
-                msg = self.s.recv(16)
+                msg = self.s.recv(4096)
                 if len(msg):
                     if new_msg:
                         msg_len = int(msg[:10])

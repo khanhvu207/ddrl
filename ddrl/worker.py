@@ -112,7 +112,3 @@ class Worker:
         data = pickle.dumps(trajectory)
         msg = bytes(f"{len(data):<{15}}", 'utf-8') + data
         self.s.sendall(msg)
-
-                
-            
-    

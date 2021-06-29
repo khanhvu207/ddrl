@@ -28,6 +28,7 @@ class Learner:
 
         # Threadlocks
         self._batcher_lock = threading.Lock()
+        self._networks_lock = threading.Lock()
 
     def _bind_server(self, ip='127.0.0.1', port=23333):
         self.server.bind((ip, port))
@@ -36,11 +37,12 @@ class Learner:
         self.executor.submit(self._server_listener)
 
     def _get_weights(self):
-        actor_weight, critic_weight = self.agent.get_weights()
-        weight_dict = {
-            'actor': actor_weight,
-            'critic': critic_weight
-        }
+        with self._networks_lock:
+            actor_weight, critic_weight = self.agent.get_weights()
+            weight_dict = {
+                'actor': actor_weight,
+                'critic': critic_weight
+            }
         return weight_dict
 
     def send_weights(self, client):
@@ -55,6 +57,11 @@ class Learner:
             print(f'Client {address[0]}:{address[1]} is connecting...')
             self.send_weights(client)
             self.executor.submit(self._worker_handler, client, address)
+            self.executor.submit(self._periodic_synchronizer, client)
+    
+    def _periodic_synchronizer(self, client):
+        time.sleep(30)
+        self.send_weights(client)
 
     def _worker_handler(self, client, address):
         client_ip, client_port = address
@@ -84,8 +91,9 @@ class Learner:
     
     def step(self):
         while True:
-            time.sleep(5)
+            time.sleep(3)
             with self._batcher_lock:
-                if len(self.batcher) >= 1024:
-                    print("Learning...")
-                    self.agent.learn(self.batcher.sample())
+                with self._networks_lock:
+                    if len(self.batcher) >= 1024:
+                        print("Learning...")
+                        self.agent.learn(self.batcher.sample())

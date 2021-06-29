@@ -2,6 +2,7 @@ import gym
 import time
 import pickle
 import socket
+import threading
 import concurrent.futures 
 from collections import deque
 
@@ -20,6 +21,9 @@ class Worker:
         self.executor.submit(self._listen_to_server)
         self.has_weight = False
         # self.executor.submit(self._send_msg_to_server)
+
+        # Threadlocks
+        self._networks_lock = threading.Lock()
 
     def _connect_to_server(self, ip='127.0.0.1', port=23333):
         self.s.connect((ip, port))
@@ -40,9 +44,11 @@ class Worker:
                     data += msg
                     if len(data) == msg_len:
                         print('Full message received')
-                        new_msg = True
                         state_dicts = pickle.loads(data)
-                        self._sync(state_dicts)
+                        with self._networks_lock:
+                            self._sync(state_dicts)
+                            data = b''
+                            new_msg = True
             except:
                 pass
         
@@ -53,9 +59,11 @@ class Worker:
     
     def evaluate(self, max_t=256, batch_size=1024):
         while True:
+            if not self.has_weight:  
+                continue
             time.sleep(1)
-            print("Evaluating...")
-            if self.has_weight:    
+            with self._networks_lock:
+                print("Evaluating...")  
                 scores = []
                 means = []
                 scores_window = deque(maxlen=100)

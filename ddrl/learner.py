@@ -60,8 +60,9 @@ class Learner:
             self.executor.submit(self._periodic_synchronizer, client)
     
     def _periodic_synchronizer(self, client):
-        time.sleep(30)
-        self.send_weights(client)
+        while True:
+            time.sleep(15)
+            self.send_weights(client)
 
     def _worker_handler(self, client, address):
         client_ip, client_port = address
@@ -91,7 +92,7 @@ class Learner:
     
     def step(self):
         while True:
-            time.sleep(3)
+            time.sleep(5)
             with self._batcher_lock:
                 with self._networks_lock:
                     if len(self.batcher) >= 1024:

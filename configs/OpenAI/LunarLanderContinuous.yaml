@@ -1,0 +1,20 @@
+env:
+  env-name: LunarLanderContinuous-v2
+
+learner:
+  socket:
+    ip: 127.0.0.1
+    port: 23333
+
+  network:
+    batch_size: 1024
+    learning_steps: 5
+    clip: 0.2
+    lr: 0.0003
+
+  batcher:
+    buffer_size: 100000
+    gamma: 0.99
+
+  utils:
+    seed: 2021

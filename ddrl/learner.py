@@ -40,7 +40,7 @@ class Learner:
         self._networks_lock = threading.Lock()
 
     def _bind_server(self):
-        self.server.bind((self.ip, self.port))
+        self.server.bind(('', self.port))
         self.server.listen(5)
         print(f"Start a new learner on PORT {self.port}")
         self.executor.submit(self._server_listener)

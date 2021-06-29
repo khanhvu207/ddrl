@@ -12,7 +12,6 @@ class Agent:
         self.state_size = state_size
         self.action_size = action_size
         
-
         # Hyperparams
         self.gamma = 0.99
         self.eps = 1e-10
@@ -111,6 +110,9 @@ class Agent:
     def save_weights(self):
         torch.save(self.Actor.state_dict(), 'actor_weight.pth')
         torch.save(self.Critic.state_dict(), 'critic_weight.pth')
+    
+    def get_weights(self):
+        return self.Actor.state_dict(), self.Critic.state_dict()
 
 
         

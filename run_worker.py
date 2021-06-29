@@ -1,5 +1,11 @@
+import yaml
+import fire
 from ddrl.worker import Worker
 
-if __name__ == '__main__':
-    worker = Worker(env_name='LunarLanderContinuous-v2')
+def main(config=None):
+    config = yaml.load(open(config, "r"), Loader=yaml.Loader)
+    worker = Worker(config)
     worker.evaluate()
+
+if __name__ == '__main__':
+    fire.Fire(main)

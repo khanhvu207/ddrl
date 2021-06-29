@@ -1,5 +1,11 @@
+import yaml
+import fire
 from ddrl.learner import Learner
 
-if __name__ == '__main__':
-    learner = Learner(env_name='LunarLanderContinuous-v2')
+def main(config=None):
+    config = yaml.load(open(config, "r"), Loader=yaml.Loader)
+    learner = Learner(config)
     learner.step()
+
+if __name__ == '__main__':
+    fire.Fire(main)

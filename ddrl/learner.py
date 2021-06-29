@@ -12,14 +12,20 @@ from .agent import Agent
 from .batcher import Batcher
 
 class Learner:
-    def __init__(self, env_name):
-        self.env = gym.make(env_name)
+    def __init__(self, config):
+        # Configs
+        self.config = config
+        self.env_name = config['env']['env-name']
+        self.ip = config['learner']['socket']['ip']
+        self.port = config['learner']['socket']['port']
+
+        self.env = gym.make(self.env_name)
         self.obs_dim = self.env.observation_space.shape[0]
         self.act_dim = self.env.action_space.shape[0]
         self.env.close()
 
-        self.agent = Agent(state_size=self.obs_dim, action_size=self.act_dim) 
-        self.batcher = Batcher()
+        self.agent = Agent(state_size=self.obs_dim, action_size=self.act_dim, config=config) 
+        self.batcher = Batcher(config=config)
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -30,10 +36,10 @@ class Learner:
         self._batcher_lock = threading.Lock()
         self._networks_lock = threading.Lock()
 
-    def _bind_server(self, ip='127.0.0.1', port=23333):
-        self.server.bind((ip, port))
+    def _bind_server(self):
+        self.server.bind((self.ip, self.port))
         self.server.listen(5)
-        print(f'Start a new learner on PORT {port}')
+        print(f'Start a new learner on PORT {self.port}')
         self.executor.submit(self._server_listener)
 
     def _get_weights(self):
@@ -49,7 +55,7 @@ class Learner:
         data_string = pickle.dumps(self._get_weights())
         msg = bytes(f"{len(data_string):<{15}}", 'utf-8') + data_string
         client.sendall(msg)
-        print('Weights sent!')
+        # print('Weights sent!')
     
     def _server_listener(self):
         while True:
@@ -95,6 +101,6 @@ class Learner:
             time.sleep(0.1)
             with self._batcher_lock:
                 with self._networks_lock:
-                    if len(self.batcher) >= 1024:
+                    if len(self.batcher) >= self.config['learner']['network']['batch_size']:
                         print("Learning...")
                         self.agent.learn(self.batcher.sample())

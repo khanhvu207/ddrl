@@ -5,11 +5,13 @@ from collections import deque, namedtuple
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Batcher:
-    def __init__(self):
-        self.memory = deque(maxlen=100000)
-        self.experience = namedtuple("Experience", field_names=["state", "action", "log_prob", "reward", "value", "done"])
+    def __init__(self, config):
+        self.buffer_size = config['learner']['batcher']['buffer_size']
+        self.gamma = config['learner']['batcher']['gamma']
+        self.batch_size = config['learner']['network']['batch_size']
 
-        self.gamma = 0.98
+        self.memory = deque(maxlen=self.buffer_size)
+        self.experience = namedtuple("Experience", field_names=["state", "action", "log_prob", "reward", "value", "done"])
         
     def add(self, trajectory):
         rw2go = self._compute_reward_to_go(trajectory['rewards'])
@@ -21,8 +23,8 @@ class Batcher:
     def __len__(self):
         return len(self.memory)
 
-    def sample(self, batch_size=1024):
-        experiences = random.sample(self.memory, k=batch_size)
+    def sample(self):
+        experiences = random.sample(self.memory, k=self.batch_size)
 
         states = torch.Tensor([e.state for e in experiences if e is not None]).to(device)
         actions = torch.Tensor([e.action for e in experiences if e is not None]).to(device)

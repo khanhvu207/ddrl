@@ -23,13 +23,15 @@ class Worker:
                 msg = self.s.recv(4096)
                 if len(msg):
                     if new_msg:
-                        msg_len = int(msg[:10])
+                        msg_len = int(msg[:15])
                         print(f'Message length: {msg_len}')
-                        msg = msg[10:]
+                        msg = msg[15:]
                         new_msg = False  
                     data += msg
+                    print(len(data))
                     if len(data) == msg_len:
                         print('Full message received')
+                        new_msg = True
                         break
             except:
                 pass

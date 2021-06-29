@@ -1,4 +1,5 @@
 import bz2
+import gym
 import json
 import time
 import pickle
@@ -9,9 +10,15 @@ from datetime import datetime
 from .agent import *
 
 class Learner:
-    def __init__(self):
-        self.agent = Agent(state_size=8, action_size=4) 
+    def __init__(self, env_name):
+        self.env = gym.make(env_name)
+        self.obs_dim = self.env.observation_space.shape[0]
+        self.act_dim = self.env.action_space.shape[0]
+        self.env.close()
+
+        self.agent = Agent(state_size=self.obs_dim, action_size=self.act_dim) 
         self.data_string = pickle.dumps(self.agent.Actor.state_dict())
+        
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -22,14 +29,27 @@ class Learner:
         self.server.listen(5)
         print(f'Start a new learner on PORT {port}')
         self.executor.submit(self._server_listener)
+
+    def _get_weights(self):
+        actor_weight, critic_weight = self.agent.get_weights()
+        return actor_weight, critic_weight
+
+    def send_weights(self, client):
+        actor_weight_string, critic_weight_string = self._get_weights()
+        weight_dict = {
+            'actor': actor_weight_string,
+            'critic': critic_weight_string
+        }
+        data_string = pickle.dumps(weight_dict)
+        msg = bytes(f"{len(data_string):<{15}}", 'utf-8') + data_string
+        client.sendall(msg)
+        print('Weights sent!')
     
     def _server_listener(self):
         while True:
             client, address = self.server.accept()
             print(f'Client {address[0]}:{address[1]} is connecting...')
-            msg = self.data_string
-            msg = bytes(f"{len(msg):<{10}}", 'utf-8') + msg
-            client.sendall(msg)
+            self.send_weights(client)
             self.executor.submit(self._new_worker_handler, client, address)
 
     def _new_worker_handler(self, client, address):

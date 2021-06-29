@@ -63,7 +63,7 @@ class Worker:
         self.update_count += 1
         print('Weights synced!')
     
-    def evaluate(self, max_t=256, batch_size=1024):
+    def evaluate(self, max_t=512, batch_size=4096):
         while True:
             if not self.has_weight:  
                 continue

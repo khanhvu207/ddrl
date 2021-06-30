@@ -53,17 +53,16 @@ class Worker:
                 if len(msg):
                     if new_msg:
                         msg_len = int(msg[:15])
-                        # print(f'Message length: {msg_len}')
                         msg = msg[15:]
                         new_msg = False
                     data += msg
                     if len(data) == msg_len:
-                        # print('Full message received')
                         state_dicts = pickle.loads(data)
                         with self._networks_lock:
                             self._sync(state_dicts)
                             data = b""
                             new_msg = True
+                        self.has_weight = True
             except:
                 pass
 
@@ -72,15 +71,13 @@ class Worker:
             actor_weight=network_weights["actor"],
             critic_weight=network_weights["critic"],
         )
-        self.has_weight = True
-        self.update_count += 1
         print("Weights synced!")
 
     def evaluate(self):
         while True:
             if not self.has_weight:
                 continue
-            time.sleep(0.01)
+            time.sleep(0)
             with self._networks_lock:
                 trajectory = {
                     "states": [],

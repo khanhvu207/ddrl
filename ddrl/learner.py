@@ -11,6 +11,7 @@ from datetime import datetime
 from .agent import Agent
 from .buffer import Buffer
 from .collector import Collector
+from .synchronizer import Synchronizer
 
 
 class Learner:
@@ -30,8 +31,13 @@ class Learner:
             state_size=self.obs_dim, action_size=self.act_dim, config=config
         )
 
+        self.eps_count = 0
+
         self.buffer = Buffer(config=config)
-        self.collector = Collector(config=config, buffer=self.buffer)
+        self.synchronizer = Synchronizer(config=config, agent=self.agent)
+        self.collector = Collector(
+            config=config, buffer=self.buffer, synchronizer=self.synchronizer
+        )
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -44,28 +50,21 @@ class Learner:
         print(f"Start a new learner on PORT {self.port}")
         self.executor.submit(self._server_listener)
 
-    def _get_weights(self):
-        actor_weight, critic_weight = self.agent.get_weights()
-        weight_dict = {"actor": actor_weight, "critic": critic_weight}
-        return weight_dict
-
-    def send_weights(self, client):
-        data_string = pickle.dumps(self._get_weights())
-        msg = bytes(f"{len(data_string):<{15}}", "utf-8") + data_string
-        client.sendall(msg)
-        print('Weights sent!')
-
     def _server_listener(self):
         while True:
             client, address = self.server.accept()
             print(f"Client {address[0]}:{address[1]} is connected...")
-            self.send_weights(client)
+
+            # New worker connected
+            self.synchronizer.update_weights()
+            self.synchronizer.send_weights(client)
             self.collector.got_new_worker(client, address)
 
     def step(self):
         while True:
             time.sleep(0)
             if len(self.buffer) >= self.config["learner"]["network"]["batch_size"]:
-                print("Learning...")
+                print(f"Step {self.eps_count}, learning...")
                 self.agent.learn(self.buffer.sample())
-
+                self.synchronizer.update_weights()
+                self.eps_count += 1

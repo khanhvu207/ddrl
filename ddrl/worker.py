@@ -24,6 +24,8 @@ class Worker:
         self.agent = Agent(
             state_size=self.obs_dim, action_size=self.act_dim, config=config
         )
+        self.msg_buffer_len = 65536
+        self.msg_length_padding = 15
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,11 +53,11 @@ class Worker:
         msg_len = 0
         while True:
             try:
-                msg = self.s.recv(4096)
+                msg = self.s.recv(self.msg_buffer_len)
                 if len(msg):
                     if new_msg:
-                        msg_len = int(msg[:15])
-                        msg = msg[15:]
+                        msg_len = int(msg[:self.msg_length_padding])
+                        msg = msg[self.msg_length_padding:]
                         new_msg = False
                     data += msg
                     if len(data) == msg_len:
@@ -113,7 +115,7 @@ class Worker:
 
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
-                print(f"Episode {self.eps_count}, Average score: {mean_score:.2f}")
+                print(f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}")
                 self.eps_count += 1
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:

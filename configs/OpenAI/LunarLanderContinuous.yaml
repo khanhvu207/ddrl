@@ -23,5 +23,5 @@ worker:
   max_t: 500
   batch_size: 2048
   save_every: 200
-  sync_every: 5
+  sync_every: 3
   

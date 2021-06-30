@@ -5,12 +5,15 @@
 import pickle
 import concurrent.futures
 
+from .synchronizer import Synchronizer
+
 class Collector:
-    def __init__(self, config, buffer):
+    def __init__(self, config, buffer, synchronizer):
         self.config = config
         self.buffer = buffer
+        self.synchronizer = synchronizer
 
-        self.msg_buffer_len = 4096
+        self.msg_buffer_len = 65536
         self.msg_length_padding = 15
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
@@ -22,7 +25,8 @@ class Collector:
         client_ip, client_port = address
         new_msg = True
         data = b""
-        
+        counter = 0
+
         while True:
             msg = client.recv(self.msg_buffer_len)
             if len(msg):
@@ -34,6 +38,9 @@ class Collector:
                 if len(data) == msg_len:
                     batch = pickle.loads(data)
                     self.buffer.add(batch)
+                    counter += 1
+                    if counter % self.config['worker']['sync_every'] == 0:
+                        self.synchronizer.send_weights(client)
                     new_msg = True
                     data = b""
         client.close()

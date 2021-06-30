@@ -86,7 +86,6 @@ class Worker:
                 "states": [],
                 "actions": [],
                 "log_probs": [],
-                "values": [],
                 "rewards": [],
                 "dones": [],
             }
@@ -101,7 +100,6 @@ class Worker:
                     trajectory["states"].append(state)
                     trajectory["actions"].append(action)
                     trajectory["log_probs"].append(log_prob)
-                    trajectory["values"].append(value)
                     eps_reward.append(reward)
                     trajectory["dones"].append(done)
                     score += reward

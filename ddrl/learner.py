@@ -40,7 +40,7 @@ class Learner:
         self._networks_lock = threading.Lock()
 
     def _bind_server(self):
-        self.server.bind(('', self.port))
+        self.server.bind(("", self.port))
         self.server.listen(5)
         print(f"Start a new learner on PORT {self.port}")
         self.executor.submit(self._server_listener)
@@ -63,33 +63,38 @@ class Learner:
             print(f"Client {address[0]}:{address[1]} is connecting...")
             self.send_weights(client)
             self.executor.submit(self._worker_handler, client, address)
-            self.executor.submit(self._periodic_synchronizer, client)
+            # self.executor.submit(self._periodic_synchronizer, client, address)
 
-    def _periodic_synchronizer(self, client):
+    def _periodic_synchronizer(self, client, address):
         while True:
-            time.sleep(30)
+            time.sleep(self.config["worker"]["sync_every"])
             self.send_weights(client)
 
     def _worker_handler(self, client, address):
         client_ip, client_port = address
         new_msg = True
         data = b""
+        counter = 0
         while True:
             msg = client.recv(4096)
             if len(msg):
                 if new_msg:
                     msg_len = int(msg[:15])
-                    # print(f'Message length: {msg_len}')
                     msg = msg[15:]
                     new_msg = False
 
                 data += msg
 
                 if len(data) == msg_len:
-                    # print('Full message received')
                     batch = pickle.loads(data)
                     with self._batcher_lock:
                         self.batcher.add(batch)
+                        counter += 1
+
+                        # Sync
+                        if counter % self.config["worker"]["sync_every"] == 0:
+                            self.send_weights(client)
+
                     new_msg = True
                     data = b""
 

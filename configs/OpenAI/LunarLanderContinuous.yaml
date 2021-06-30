@@ -7,20 +7,21 @@ learner:
     port: 23333
 
   network:
-    batch_size: 1024
-    learning_steps: 5
-    clip: 0.2
+    batch_size: 256
+    learning_steps: 3
+    clip: 0.15
     lr: 0.0003
 
   batcher:
-    buffer_size: 100000
-    gamma: 0.99
+    buffer_size: 10000
+    gamma: 0.95
 
   utils:
     seed: 2021
 
 worker:
   max_t: 512
-  batch_size: 4096
+  batch_size: 1024
   save_every: 25
+  sync_every: 10
   

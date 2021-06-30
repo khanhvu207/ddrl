@@ -119,6 +119,7 @@ class Worker:
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:
                     self.agent.save_weights()
+                    print('Save weights')
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

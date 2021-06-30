@@ -13,7 +13,6 @@ class ActorNetwork(nn.Module):
         seed=2021,
         hidden_size1=128,
         hidden_size2=128,
-        hidden_size3=64,
     ):
         super(ActorNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
@@ -36,7 +35,7 @@ class ActorNetwork(nn.Module):
 
 class CriticNetwork(nn.Module):
     def __init__(
-        self, state_size, seed=2021, hidden_size1=128, hidden_size2=128, hidden_size3=64
+        self, state_size, seed=2021, hidden_size1=256, hidden_size2=256
     ):
         super(CriticNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)

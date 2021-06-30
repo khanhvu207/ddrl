@@ -9,7 +9,6 @@ from torch.cuda.amp import GradScaler, autocast
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
 class Agent:
     def __init__(self, state_size, action_size, config):
         self.state_size = state_size
@@ -60,7 +59,7 @@ class Agent:
         Proximal Policy Optimization
         Pseudocode: https://spinningup.openai.com/en/latest/algorithms/ppo.html
         """
-        states, actions, log_probs, values, rewards2go = minibatch
+        states, actions, log_probs, rewards2go = minibatch
 
         with torch.no_grad():
             self.Critic.eval()

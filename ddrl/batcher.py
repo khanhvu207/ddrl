@@ -15,7 +15,7 @@ class Batcher:
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",
-            field_names=["state", "action", "log_prob", "reward", "value", "done"],
+            field_names=["state", "action", "log_prob", "reward", "done"],
         )
 
         self._buffer_lock = threading.Lock()
@@ -28,7 +28,6 @@ class Batcher:
                 trajectory["actions"][i],
                 trajectory["log_probs"][i],
                 rw2go[i],
-                trajectory["values"][i],
                 trajectory["dones"][i],
             )
             with self._buffer_lock:
@@ -51,16 +50,13 @@ class Batcher:
         log_probs = torch.Tensor([e.log_prob for e in experiences if e is not None]).to(
             device
         )
-        values = torch.Tensor([e.value for e in experiences if e is not None]).to(
-            device
-        )
         rewards = torch.Tensor([e.reward for e in experiences if e is not None]).to(
             device
         )
 
         values = torch.squeeze(values)
         log_probs = torch.squeeze(log_probs)
-        return states, actions, log_probs, values, rewards
+        return states, actions, log_probs, rewards
 
     def _compute_reward_to_go(self, rewards):
         rw2go = []

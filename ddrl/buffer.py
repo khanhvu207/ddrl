@@ -15,7 +15,7 @@ class Buffer:
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",
-            field_names=["state", "action", "log_prob", "reward", "done"],
+            field_names=["state", "action", "prev_actions", "log_prob", "reward", "done"],
         )
 
         self._buffer_lock = threading.Lock()
@@ -26,6 +26,7 @@ class Buffer:
             e = self.experience(
                 trajectory["states"][i],
                 trajectory["actions"][i],
+                trajectory["prev_actions"][i],
                 trajectory["log_probs"][i],
                 rw2go[i],
                 trajectory["dones"][i],
@@ -47,6 +48,9 @@ class Buffer:
         actions = torch.Tensor([e.action for e in experiences if e is not None]).to(
             device
         )
+        prev_actions = torch.Tensor([e.prev_actions for e in experiences if e is not None]).to(
+            device
+        )
         log_probs = torch.Tensor([e.log_prob for e in experiences if e is not None]).to(
             device
         )
@@ -55,7 +59,7 @@ class Buffer:
         )
 
         log_probs = torch.squeeze(log_probs)
-        return states, actions, log_probs, rewards
+        return states, actions, prev_actions, log_probs, rewards
 
     def _compute_reward_to_go(self, rewards):
         rw2go = []

@@ -34,8 +34,10 @@ class Agent:
         self._weights_lock = threading.Lock()
         self.synced = False
 
-    def act(self, state):
+    def act(self, state, prev_actions):
+        prev_actions = torch.Tensor(prev_actions).to(device)
         state = torch.Tensor(state).to(device)
+        prev_actions = torch.unsqueeze(prev_actions, dim=0)
         state = torch.unsqueeze(state, dim=0)
 
         # Get action and state's value
@@ -43,7 +45,7 @@ class Agent:
             self.Actor.eval()
             self.Critic.eval()
             with torch.no_grad():
-                action, log_prob = self.Actor(state)
+                action, log_prob = self.Actor(state, prev_actions)
                 value = self.Critic(state)
             self.Actor.train()
             self.Critic.train()
@@ -59,7 +61,7 @@ class Agent:
         Proximal Policy Optimization
         Pseudocode: https://spinningup.openai.com/en/latest/algorithms/ppo.html
         """
-        states, actions, log_probs, rewards2go = minibatch
+        states, actions, prev_actions, log_probs, rewards2go = minibatch
 
         with torch.no_grad():
             self.Critic.eval()
@@ -76,7 +78,7 @@ class Agent:
         # 6. Multi-step gradient descent
         with self._weights_lock:
             for _ in range(self.learning_steps):
-                cur_values, cur_log_probs = self.evaluate(states, actions)
+                cur_values, cur_log_probs = self.evaluate(states, actions, prev_actions)
 
                 # Compute the ratio between current probs and old probs
                 ratios = torch.exp(cur_log_probs - log_probs)
@@ -99,9 +101,9 @@ class Agent:
                 torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
 
-    def evaluate(self, states, actions):
+    def evaluate(self, states, actions, prev_actions):
         cur_values = self.Critic(states)
-        _, cur_log_probs = self.Actor(states, actions)
+        _, cur_log_probs = self.Actor(states, prev_actions, actions)
         cur_values = torch.squeeze(cur_values)
         cur_log_probs = torch.squeeze(cur_log_probs)
         return cur_values, cur_log_probs

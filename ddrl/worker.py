@@ -3,6 +3,7 @@ import time
 import pickle
 import socket
 import threading
+import numpy as np
 import concurrent.futures
 from collections import deque
 
@@ -17,6 +18,7 @@ class Worker:
         self.port = config["learner"]["socket"]["port"]
         self.max_t = config["worker"]["max_t"]
         self.batch_size = config["worker"]["batch_size"]
+        self.gru_seq_len = config["learner"]["network"]["gru_seq_len"]
 
         self.env = gym.make(self.env_name)
         self.obs_dim = self.env.observation_space.shape[0]
@@ -56,8 +58,8 @@ class Worker:
                 msg = self.s.recv(self.msg_buffer_len)
                 if len(msg):
                     if new_msg:
-                        msg_len = int(msg[:self.msg_length_padding])
-                        msg = msg[self.msg_length_padding:]
+                        msg_len = int(msg[: self.msg_length_padding])
+                        msg = msg[self.msg_length_padding :]
                         new_msg = False
                     data += msg
                     if len(data) == msg_len:
@@ -87,6 +89,7 @@ class Worker:
             trajectory = {
                 "states": [],
                 "actions": [],
+                "prev_actions": [],
                 "log_probs": [],
                 "rewards": [],
                 "dones": [],
@@ -96,26 +99,39 @@ class Worker:
                 eps_reward = []
                 score = 0
                 state = self.env.reset()
+                prev_actions = deque(
+                    [np.zeros(self.act_dim) for _ in range(self.gru_seq_len)],
+                    maxlen=self.gru_seq_len,
+                )
+
                 for t in range(self.max_t):
-                    action, log_prob, value = self.agent.act(state)
+                    action, log_prob, value = self.agent.act(
+                        state, prev_actions=prev_actions
+                    )
                     observation, reward, done, info = self.env.step(action)
+                    prev_actions.append(action)
+
                     trajectory["states"].append(state)
                     trajectory["actions"].append(action)
+                    trajectory["prev_actions"].append(prev_actions)
                     trajectory["log_probs"].append(log_prob)
-                    eps_reward.append(reward)
                     trajectory["dones"].append(done)
+                    eps_reward.append(reward)
                     score += reward
                     total_t += 1
                     state = observation
                     if done:
                         break
+
                 trajectory["rewards"].append(eps_reward)
                 self.scores.append(score)
                 self.scores_window.append(score)
 
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
-                print(f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}")
+                print(
+                    f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}"
+                )
                 self.eps_count += 1
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:

@@ -5,6 +5,7 @@ import torch
 import threading
 import numpy as np
 from torch.optim import Adam
+from torch.cuda.amp import GradScaler, autocast
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -18,6 +19,7 @@ class Agent:
         self.clip = config["learner"]["network"]["clip"]
         self.lr = config["learner"]["network"]["lr"]
         self.seed = config["learner"]["utils"]["seed"]
+        self.max_grad_norm = 1.0
 
         # Networks
         self.Actor = ActorNetwork(state_size=state_size, action_size=action_size).to(
@@ -29,33 +31,27 @@ class Agent:
         self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr)
         self.critic_optim = Adam(self.Critic.parameters(), lr=self.lr)
 
-        # Exploration noise
-        self.ou_noise = OUNoise(size=action_size, seed=self.seed)
-
         # Threadlocks
         self._weights_lock = threading.Lock()
 
-    def noise_reset(self):
-        self.ou_noise.reset()
-
-    def act(self, state, is_train=False):
+    def act(self, state):
         state = torch.Tensor(state).to(device)
         state = torch.unsqueeze(state, dim=0)
 
         # Get action and state's value
-        self.Actor.eval()
-        self.Critic.eval()
-        with torch.no_grad():
-            action, log_prob = self.Actor(state)
-            value = self.Critic(state)
-        self.Actor.train()
-        self.Critic.train()
+        with self._weights_lock:
+            self.Actor.eval()
+            self.Critic.eval()
+            with torch.no_grad():
+                action, log_prob = self.Actor(state)
+                value = self.Critic(state)
+            self.Actor.train()
+            self.Critic.train()
 
-        action = torch.squeeze(action).cpu().detach().numpy()
-        if is_train:
-            action += self.ou_noise.sample()
-        log_prob = log_prob.cpu().detach().numpy()
-        value = value.cpu().detach().numpy()
+            action = torch.squeeze(action).cpu().detach().numpy()
+            log_prob = log_prob.cpu().detach().numpy()
+            value = value.cpu().detach().numpy()
+
         return action, log_prob, value
 
     def learn(self, minibatch):
@@ -93,12 +89,14 @@ class Agent:
                 actor_loss = actor_loss.mean()
                 critic_loss = nn.MSELoss()(cur_values, rewards2go)
 
-                # Backpropagation & Gradient descent
                 self.actor_optim.zero_grad()
                 actor_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.Actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
+                
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
 
     def evaluate(self, states, actions):
@@ -119,5 +117,6 @@ class Agent:
 
     def sync(self, actor_weight, critic_weight):
         with self._weights_lock:
+            print("Syncing...")
             self.Actor.load_state_dict(actor_weight)
             self.Critic.load_state_dict(critic_weight)

@@ -30,9 +30,6 @@ class Worker:
         self._connect_to_server()
         self.executor.submit(self._listen_to_server)
 
-        # Locks
-        self._networks_lock = threading.Lock()
-
         # Monitoring
         self.eps_count = 0
         self.has_weight = False
@@ -63,11 +60,12 @@ class Worker:
                     data += msg
                     if len(data) == msg_len:
                         state_dicts = pickle.loads(data)
-                        with self._networks_lock:
-                            self._sync(state_dicts)
-                            data = b""
-                            new_msg = True
-                        self.has_weight = True
+                        self._sync(state_dicts)
+                        data = b""
+                        new_msg = True
+                        if not self.has_weight:
+                            self.has_weight = True
+                            self.executor.submit(self.run)
             except:
                 pass
 
@@ -78,53 +76,50 @@ class Worker:
         )
         print("Weights synced!")
 
-    def evaluate(self):
+    def run(self):
         while True:
-            if not self.has_weight:
-                continue
             time.sleep(0)
-            with self._networks_lock:
-                trajectory = {
-                    "states": [],
-                    "actions": [],
-                    "log_probs": [],
-                    "values": [],
-                    "rewards": [],
-                    "dones": [],
-                }
-                total_t = 0
-                while total_t < self.batch_size:
-                    eps_reward = []
-                    score = 0
-                    state = self.env.reset()
-                    self.agent.noise_reset()
-                    for t in range(self.max_t):
-                        action, log_prob, value = self.agent.act(state, is_train=False)
-                        observation, reward, done, info = self.env.step(action)
-                        trajectory["states"].append(state)
-                        trajectory["actions"].append(action)
-                        trajectory["log_probs"].append(log_prob)
-                        trajectory["values"].append(value)
-                        eps_reward.append(reward)
-                        trajectory["dones"].append(done)
-                        score += reward
-                        total_t += 1
-                        state = observation
-                        if done:
-                            break
-                    trajectory["rewards"].append(eps_reward)
-                    self.scores.append(score)
-                    self.scores_window.append(score)
+            trajectory = {
+                "states": [],
+                "actions": [],
+                "log_probs": [],
+                "values": [],
+                "rewards": [],
+                "dones": [],
+            }
+            total_t = 0
+            while total_t < self.batch_size:
+                eps_reward = []
+                score = 0
+                state = self.env.reset()
+                for t in range(self.max_t):
+                    action, log_prob, value = self.agent.act(state)
+                    observation, reward, done, info = self.env.step(action)
+                    trajectory["states"].append(state)
+                    trajectory["actions"].append(action)
+                    trajectory["log_probs"].append(log_prob)
+                    trajectory["values"].append(value)
+                    eps_reward.append(reward)
+                    trajectory["dones"].append(done)
+                    score += reward
+                    total_t += 1
+                    state = observation
+                    if done:
+                        break
+                trajectory["rewards"].append(eps_reward)
+                self.scores.append(score)
+                self.scores_window.append(score)
 
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
                 print(f"Episode {self.eps_count}, Average score: {mean_score:.2f}")
                 self.eps_count += 1
-                self._send_collected_experience(trajectory)
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:
                     self.agent.save_weights()
                     print("Save weights")
+
+            self._send_collected_experience(trajectory)
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

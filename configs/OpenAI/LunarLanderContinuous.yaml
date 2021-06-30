@@ -7,8 +7,8 @@ learner:
     port: 23333
 
   network:
-    batch_size: 128
-    learning_steps: 5
+    batch_size: 1024
+    learning_steps: 3
     clip: 0.2
     lr: 0.0003
 
@@ -20,8 +20,8 @@ learner:
     seed: 2021
 
 worker:
-  max_t: 200
-  batch_size: 1024
-  save_every: 25
+  max_t: 500
+  batch_size: 2048
+  save_every: 200
   sync_every: 10
   

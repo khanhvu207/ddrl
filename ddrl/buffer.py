@@ -6,7 +6,7 @@ from collections import deque, namedtuple
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class Batcher:
+class Buffer:
     def __init__(self, config):
         self.buffer_size = config["learner"]["batcher"]["buffer_size"]
         self.gamma = config["learner"]["batcher"]["gamma"]
@@ -54,7 +54,6 @@ class Batcher:
             device
         )
 
-        values = torch.squeeze(values)
         log_probs = torch.squeeze(log_probs)
         return states, actions, log_probs, rewards
 

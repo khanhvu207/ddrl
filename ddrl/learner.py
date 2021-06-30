@@ -9,7 +9,8 @@ import concurrent.futures
 from datetime import datetime
 
 from .agent import Agent
-from .batcher import Batcher
+from .buffer import Buffer
+from .collector import Collector
 
 
 class Learner:
@@ -28,7 +29,9 @@ class Learner:
         self.agent = Agent(
             state_size=self.obs_dim, action_size=self.act_dim, config=config
         )
-        self.batcher = Batcher(config=config)
+
+        self.buffer = Buffer(config=config)
+        self.collector = Collector(config=config, buffer=self.buffer)
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,49 +58,14 @@ class Learner:
     def _server_listener(self):
         while True:
             client, address = self.server.accept()
-            print(f"Client {address[0]}:{address[1]} is connecting...")
+            print(f"Client {address[0]}:{address[1]} is connected...")
             self.send_weights(client)
-            self.executor.submit(self._worker_handler, client, address)
-            # self.executor.submit(self._periodic_synchronizer, client, address)
-
-    def _periodic_synchronizer(self, client, address):
-        while True:
-            time.sleep(self.config["worker"]["sync_every"])
-            self.send_weights(client)
-
-    def _worker_handler(self, client, address):
-        client_ip, client_port = address
-        new_msg = True
-        data = b""
-        counter = 0
-        while True:
-            msg = client.recv(4096)
-            if len(msg):
-                if new_msg:
-                    msg_len = int(msg[:15])
-                    msg = msg[15:]
-                    new_msg = False
-
-                data += msg
-
-                if len(data) == msg_len:
-                    batch = pickle.loads(data)
-                    self.batcher.add(batch)
-                    counter += 1
-
-                    # Sync
-                    if counter % self.config["worker"]["sync_every"] == 0:
-                        self.send_weights(client)
-
-                    new_msg = True
-                    data = b""
-
-        print(f"{client_ip}:{client_port} disconnected!")
-        client.close()
+            self.collector.got_new_worker(client, address)
 
     def step(self):
         while True:
             time.sleep(0)
-            if len(self.batcher) >= self.config["learner"]["network"]["batch_size"]:
+            if len(self.buffer) >= self.config["learner"]["network"]["batch_size"]:
                 print("Learning...")
-                self.agent.learn(self.batcher.sample())
+                self.agent.learn(self.buffer.sample())
+

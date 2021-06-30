@@ -1,4 +1,4 @@
-from .models import *
+from .networks import *
 from .utils import *
 
 import torch

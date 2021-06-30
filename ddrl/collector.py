@@ -1,11 +1,8 @@
-# TODO:
-# - A Collector class to collect trajectories sent by workers
-# - Insert collected trajectories into the buffer
-
 import pickle
 import concurrent.futures
 
 from .synchronizer import Synchronizer
+
 
 class Collector:
     def __init__(self, config, buffer, synchronizer):
@@ -17,7 +14,7 @@ class Collector:
         self.msg_length_padding = 15
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
-    
+
     def got_new_worker(self, client, address):
         self.executor.submit(self._worker_handler, client, address)
 
@@ -31,15 +28,15 @@ class Collector:
             msg = client.recv(self.msg_buffer_len)
             if len(msg):
                 if new_msg:
-                    msg_len = int(msg[:self.msg_length_padding])
-                    msg = msg[self.msg_length_padding:]
+                    msg_len = int(msg[: self.msg_length_padding])
+                    msg = msg[self.msg_length_padding :]
                     new_msg = False
                 data += msg
                 if len(data) == msg_len:
                     batch = pickle.loads(data)
                     self.buffer.add(batch)
                     counter += 1
-                    if counter % self.config['worker']['sync_every'] == 0:
+                    if counter % self.config["worker"]["sync_every"] == 0:
                         self.synchronizer.send_weights(client)
                     new_msg = True
                     data = b""

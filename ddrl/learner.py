@@ -55,7 +55,7 @@ class Learner:
         data_string = pickle.dumps(self._get_weights())
         msg = bytes(f"{len(data_string):<{15}}", "utf-8") + data_string
         client.sendall(msg)
-        # print('Weights sent!')
+        print('Weights sent!')
 
     def _server_listener(self):
         while True:

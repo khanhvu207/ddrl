@@ -41,7 +41,12 @@ class Worker:
         self.scores_window = deque(maxlen=100)
 
     def _connect_to_server(self):
-        self.s.connect((self.ip, self.port))
+        while True:
+            try:
+                self.s.connect((self.ip, self.port))
+                break
+            except:
+                pass
 
     def _listen_to_server(self):
         data = b""
@@ -119,7 +124,7 @@ class Worker:
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:
                     self.agent.save_weights()
-                    print('Save weights')
+                    print("Save weights")
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

@@ -2,6 +2,7 @@ from .models import *
 from .utils import *
 
 import torch
+import threading
 import numpy as np
 from torch.optim import Adam
 
@@ -30,6 +31,9 @@ class Agent:
 
         # Exploration noise
         self.ou_noise = OUNoise(size=action_size, seed=self.seed)
+
+        # Threadlocks
+        self._weights_lock = threading.Lock()
 
     def noise_reset(self):
         self.ou_noise.reset()
@@ -74,27 +78,28 @@ class Agent:
         advantages.to(device)
 
         # 6. Multi-step gradient descent
-        for _ in range(self.learning_steps):
-            cur_values, cur_log_probs = self.evaluate(states, actions)
+        with self._weights_lock:
+            for _ in range(self.learning_steps):
+                cur_values, cur_log_probs = self.evaluate(states, actions)
 
-            # Compute the ratio between current probs and old probs
-            ratios = torch.exp(cur_log_probs - log_probs)
+                # Compute the ratio between current probs and old probs
+                ratios = torch.exp(cur_log_probs - log_probs)
 
-            # PPO-Clip objective
-            actor_loss = -torch.min(
-                ratios * advantages,
-                torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
-            )
-            actor_loss = actor_loss.mean()
-            critic_loss = nn.MSELoss()(cur_values, rewards2go)
+                # PPO-Clip objective
+                actor_loss = -torch.min(
+                    ratios * advantages,
+                    torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
+                )
+                actor_loss = actor_loss.mean()
+                critic_loss = nn.MSELoss()(cur_values, rewards2go)
 
-            # Backpropagation & Gradient descent
-            self.actor_optim.zero_grad()
-            actor_loss.backward()
-            self.actor_optim.step()
-            self.critic_optim.zero_grad()
-            critic_loss.backward()
-            self.critic_optim.step()
+                # Backpropagation & Gradient descent
+                self.actor_optim.zero_grad()
+                actor_loss.backward()
+                self.actor_optim.step()
+                self.critic_optim.zero_grad()
+                critic_loss.backward()
+                self.critic_optim.step()
 
     def evaluate(self, states, actions):
         cur_values = self.Critic(states)
@@ -104,12 +109,15 @@ class Agent:
         return cur_values, cur_log_probs
 
     def save_weights(self):
-        torch.save(self.Actor.state_dict(), "actor_weight.pth")
-        torch.save(self.Critic.state_dict(), "critic_weight.pth")
+        with self._weights_lock:
+            torch.save(self.Actor.state_dict(), "actor_weight.pth")
+            torch.save(self.Critic.state_dict(), "critic_weight.pth")
 
     def get_weights(self):
-        return self.Actor.state_dict(), self.Critic.state_dict()
+        with self._weights_lock:
+            return self.Actor.state_dict(), self.Critic.state_dict()
 
     def sync(self, actor_weight, critic_weight):
-        self.Actor.load_state_dict(actor_weight)
-        self.Critic.load_state_dict(critic_weight)
+        with self._weights_lock:
+            self.Actor.load_state_dict(actor_weight)
+            self.Critic.load_state_dict(critic_weight)

@@ -35,10 +35,6 @@ class Learner:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
 
-        # Threadlocks
-        self._batcher_lock = threading.Lock()
-        self._networks_lock = threading.Lock()
-
     def _bind_server(self):
         self.server.bind(("", self.port))
         self.server.listen(5)
@@ -46,9 +42,8 @@ class Learner:
         self.executor.submit(self._server_listener)
 
     def _get_weights(self):
-        with self._networks_lock:
-            actor_weight, critic_weight = self.agent.get_weights()
-            weight_dict = {"actor": actor_weight, "critic": critic_weight}
+        actor_weight, critic_weight = self.agent.get_weights()
+        weight_dict = {"actor": actor_weight, "critic": critic_weight}
         return weight_dict
 
     def send_weights(self, client):
@@ -87,13 +82,12 @@ class Learner:
 
                 if len(data) == msg_len:
                     batch = pickle.loads(data)
-                    with self._batcher_lock:
-                        self.batcher.add(batch)
-                        counter += 1
+                    self.batcher.add(batch)
+                    counter += 1
 
-                        # Sync
-                        if counter % self.config["worker"]["sync_every"] == 0:
-                            self.send_weights(client)
+                    # Sync
+                    if counter % self.config["worker"]["sync_every"] == 0:
+                        self.send_weights(client)
 
                     new_msg = True
                     data = b""
@@ -103,12 +97,7 @@ class Learner:
 
     def step(self):
         while True:
-            time.sleep(0.1)
-            with self._batcher_lock:
-                with self._networks_lock:
-                    if (
-                        len(self.batcher)
-                        >= self.config["learner"]["network"]["batch_size"]
-                    ):
-                        print("Learning...")
-                        self.agent.learn(self.batcher.sample())
+            time.sleep(0)
+            if len(self.batcher) >= self.config["learner"]["network"]["batch_size"]:
+                print("Learning...")
+                self.agent.learn(self.batcher.sample())

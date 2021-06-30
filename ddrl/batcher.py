@@ -1,5 +1,6 @@
 import torch
 import random
+import threading
 from collections import deque, namedtuple
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -17,6 +18,8 @@ class Batcher:
             field_names=["state", "action", "log_prob", "reward", "value", "done"],
         )
 
+        self._buffer_lock = threading.Lock()
+
     def add(self, trajectory):
         rw2go = self._compute_reward_to_go(trajectory["rewards"])
         for i in range(len(rw2go)):
@@ -28,14 +31,16 @@ class Batcher:
                 trajectory["values"][i],
                 trajectory["dones"][i],
             )
-            self.memory.append(e)
+            with self._buffer_lock:
+                self.memory.append(e)
         print("Buffer updated")
 
     def __len__(self):
         return len(self.memory)
 
     def sample(self):
-        experiences = random.sample(self.memory, k=self.batch_size)
+        with self._buffer_lock:
+            experiences = random.sample(self.memory, k=self.batch_size)
 
         states = torch.Tensor([e.state for e in experiences if e is not None]).to(
             device

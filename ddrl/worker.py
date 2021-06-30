@@ -63,9 +63,6 @@ class Worker:
                         self._sync(state_dicts)
                         data = b""
                         new_msg = True
-                        if not self.has_weight:
-                            self.has_weight = True
-                            self.executor.submit(self.run)
             except:
                 pass
 
@@ -76,8 +73,14 @@ class Worker:
         )
         print("Weights synced!")
 
+        if not self.has_weight:
+            self.has_weight = True
+            self.executor.submit(self.run)
+
     def run(self):
         while True:
+            if not self.agent.synced:
+                continue
             time.sleep(0)
             trajectory = {
                 "states": [],

@@ -33,6 +33,7 @@ class Agent:
 
         # Threadlocks
         self._weights_lock = threading.Lock()
+        self.synced = False
 
     def act(self, state):
         state = torch.Tensor(state).to(device)
@@ -120,3 +121,4 @@ class Agent:
             print("Syncing...")
             self.Actor.load_state_dict(actor_weight)
             self.Critic.load_state_dict(critic_weight)
+            self.synced = True

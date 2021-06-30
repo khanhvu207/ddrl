@@ -75,7 +75,7 @@ class Worker:
             actor_weight=network_weights["actor"],
             critic_weight=network_weights["critic"],
         )
-        print("Weights synced!")
+        print("Weights synced!", end='\r', flush=True)
 
         if not self.has_weight:
             self.has_weight = True
@@ -130,13 +130,15 @@ class Worker:
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
                 print(
-                    f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}"
+                    f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}",
+                    end='\r',
+                    flush=True
                 )
                 self.eps_count += 1
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:
                     self.agent.save_weights()
-                    print("Save weights")
+                    print("Save weights", end='\r', flush=True)
 
             self._send_collected_experience(trajectory)
 

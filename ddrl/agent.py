@@ -119,7 +119,6 @@ class Agent:
 
     def sync(self, actor_weight, critic_weight):
         with self._weights_lock:
-            print("Syncing...")
             self.Actor.load_state_dict(actor_weight)
             self.Critic.load_state_dict(critic_weight)
             self.synced = True

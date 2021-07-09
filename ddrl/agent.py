@@ -71,7 +71,7 @@ class Agent:
 
         for _ in range(self.learning_steps):
                 
-                cur_values, cur_log_probs = self.evaluate(states, actions, prev_actions)
+                cur_values, cur_log_probs = self.compute(states, actions, prev_actions)
 
                 ratios = torch.exp(cur_log_probs - log_probs)
 
@@ -94,7 +94,7 @@ class Agent:
                     torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
                     self.critic_optim.step()
 
-    def evaluate(self, states, actions, prev_actions):
+    def compute(self, states, actions, prev_actions):
         cur_values = self.Critic(states)
         _, cur_log_probs = self.Actor(states, prev_actions, actions)
 
@@ -116,3 +116,5 @@ class Agent:
             self.Actor.load_state_dict(actor_weight)
             self.Critic.load_state_dict(critic_weight)
             self.synced = True
+    
+

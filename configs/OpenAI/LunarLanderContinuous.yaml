@@ -19,6 +19,8 @@ learner:
 
   utils:
     seed: 2021
+  
+  eval_every: 5
 
 worker:
   max_t: 500

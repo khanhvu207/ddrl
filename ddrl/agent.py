@@ -1,12 +1,17 @@
 from .networks import *
 from .utils import *
 
+import gym
+import math
 import time
 import torch
 import threading
 import numpy as np
+from collections import deque
+
 from torch.optim import Adam
 from torch.cuda.amp import GradScaler, autocast
+
 
 class Agent:
     def __init__(self, state_size, action_size, config, device):
@@ -20,24 +25,32 @@ class Agent:
         self.max_grad_norm = 1.0
         self.device = device
 
+        self.env_name = config["env"]["env-name"]
+        self.env = gym.make(self.env_name)
+        self.gru_seq_len = config["learner"]["network"]["gru_seq_len"]
+        self.max_t = config["worker"]["max_t"]
+        self.best_score = -math.inf
+
         # Networks
-        self.Actor = ActorNetwork(state_size=state_size, action_size=action_size, device=device).to(
-            device
-        )
+        self.Actor = ActorNetwork(
+            state_size=state_size, action_size=action_size, device=device
+        ).to(device)
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
         # Optimizers
         self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr, weight_decay=1e-5)
-        self.critic_optim = Adam(self.Critic.parameters(), lr=self.lr, weight_decay=1e-5)
+        self.critic_optim = Adam(
+            self.Critic.parameters(), lr=self.lr, weight_decay=1e-5
+        )
 
         # Threadlocks
         self._weights_lock = threading.Lock()
         self.synced = False
-    
+
     def eval_mode(self):
         self.Actor.eval()
         self.Critic.eval()
-    
+
     def train_mode(self):
         self.Actor.train()
         self.Critic.train()
@@ -70,29 +83,33 @@ class Agent:
         states, actions, prev_actions, log_probs, vs, advantages = minibatch
 
         for _ in range(self.learning_steps):
-                
-                cur_values, cur_log_probs = self.compute(states, actions, prev_actions)
 
-                ratios = torch.exp(cur_log_probs - log_probs)
+            cur_values, cur_log_probs = self.compute(states, actions, prev_actions)
 
-                # PPO-Clip objective
-                actor_loss = -torch.min(
-                    ratios * advantages,
-                    torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
+            ratios = torch.exp(cur_log_probs - log_probs)
+
+            # PPO-Clip objective
+            actor_loss = -torch.min(
+                ratios * advantages,
+                torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
+            )
+            actor_loss = actor_loss.mean()
+            critic_loss = nn.MSELoss()(cur_values, vs)
+
+            with self._weights_lock:
+                self.actor_optim.zero_grad()
+                actor_loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    self.Actor.parameters(), self.max_grad_norm
                 )
-                actor_loss = actor_loss.mean()
-                critic_loss = nn.MSELoss()(cur_values, vs)
+                self.actor_optim.step()
 
-                with self._weights_lock:
-                    self.actor_optim.zero_grad()
-                    actor_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.Actor.parameters(), self.max_grad_norm)
-                    self.actor_optim.step()
-                    
-                    self.critic_optim.zero_grad()
-                    critic_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
-                    self.critic_optim.step()
+                self.critic_optim.zero_grad()
+                critic_loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    self.Critic.parameters(), self.max_grad_norm
+                )
+                self.critic_optim.step()
 
     def compute(self, states, actions, prev_actions):
         cur_values = self.Critic(states)
@@ -116,5 +133,30 @@ class Agent:
             self.Actor.load_state_dict(actor_weight)
             self.Critic.load_state_dict(critic_weight)
             self.synced = True
-    
 
+    def evaluate(self):
+        scores = []
+        for _ in range(5):
+            score = 0
+            state = self.env.reset()
+            prev_actions = deque(
+                [np.zeros(self.action_size) for _ in range(self.gru_seq_len)],
+                maxlen=self.gru_seq_len,
+            )
+
+            for t in range(self.max_t):
+                action, log_prob, value = self.act(state, prev_actions=prev_actions)
+                observation, reward, done, info = self.env.step(action)
+                score += reward
+                state = observation
+                if done:
+                    break
+
+            scores.append(score)
+
+        mean_score = np.mean(scores)
+        print(f"Evaluation score: {mean_score}")
+        if mean_score > self.best_score:
+            print(f"The agent has improved from the last evaluation! Saving weight...")
+            self.best_score = mean_score
+            self.save_weights()

@@ -77,3 +77,6 @@ class Learner:
                 self.agent.learn(self.buffer.sample())
                 self.synchronizer.update_weights()
                 self.eps_count += 1
+
+                if self.eps_count % self.config["learner"]["eval_every"] == 0:
+                    self.agent.evaluate()

@@ -16,8 +16,9 @@ class Collector:
         self.executor = concurrent.futures.ThreadPoolExecutor()
 
     def got_new_worker(self, client, address):
-        self.executor.submit(self._worker_handler, client, address)
-
+        f = self.executor.submit(self._worker_handler, client, address)
+        f.result()
+        
     def _worker_handler(self, client, address):
         client_ip, client_port = address
         new_msg = True

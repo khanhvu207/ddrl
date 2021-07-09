@@ -1,7 +1,10 @@
 import torch
 import random
 import threading
+import numpy as np
 from collections import deque, namedtuple
+
+from .losses import vtrace
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -12,7 +15,7 @@ class Buffer:
         self.gamma = config["learner"]["batcher"]["gamma"]
         self.batch_size = config["learner"]["network"]["batch_size"]
         self.agent = agent
-        
+
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",
@@ -29,6 +32,32 @@ class Buffer:
             log_probs = trajectory["log_probs"][i]
             returns = self._compute_returns(trajectory["rewards"][i])
             rewards = trajectory["rewards"][i]
+
+            with torch.no_grad():
+                with self.agent._weights_lock:
+                    self.agent.eval_mode()
+                    cur_values, cur_log_probs = self.agent.evaluate(
+                        states=torch.Tensor(states).to(device),
+                        actions=torch.Tensor(actions).to(device),
+                        prev_actions=torch.Tensor(prev_actions).to(device),
+                    )
+                    self.agent.train_mode()
+
+            cur_values = cur_values.cpu().detach().numpy()
+            cur_log_probs = cur_log_probs.cpu().detach().numpy()
+            unclipped_rhos = np.exp(cur_log_probs - np.squeeze(np.array(log_probs)))
+            rhos = np.clip(unclipped_rhos, 0.0, 1.0)
+            cs = np.clip(unclipped_rhos, 0.0, 1.0)
+            
+            vtrace(
+                values=cur_values,
+                returns=returns,
+                rewards=rewards,
+                gamma=self.gamma,
+                rhos=rhos,
+                cs=cs,
+            )
+            
 
             for j in range(len(states)):
                 e = self.experience(
@@ -55,9 +84,9 @@ class Buffer:
         actions = torch.Tensor([e.action for e in experiences if e is not None]).to(
             device
         )
-        prev_actions = torch.Tensor([e.prev_actions for e in experiences if e is not None]).to(
-            device
-        )
+        prev_actions = torch.Tensor(
+            [e.prev_actions for e in experiences if e is not None]
+        ).to(device)
         log_probs = torch.Tensor([e.log_prob for e in experiences if e is not None]).to(
             device
         )

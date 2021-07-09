@@ -32,6 +32,14 @@ class Agent:
         # Threadlocks
         self._weights_lock = threading.Lock()
         self.synced = False
+    
+    def eval_mode(self):
+        self.Actor.eval()
+        self.Critic.eval()
+    
+    def train_mode(self):
+        self.Actor.train()
+        self.Critic.train()
 
     def act(self, state, prev_actions):
         prev_actions = torch.Tensor(prev_actions).to(self.device)
@@ -41,13 +49,11 @@ class Agent:
 
         # Get action and state's value
         with self._weights_lock:
-            self.Actor.eval()
-            self.Critic.eval()
+            self.eval_mode()
             with torch.no_grad():
                 action, log_prob = self.Actor(state, prev_actions)
                 value = self.Critic(state)
-            self.Actor.train()
-            self.Critic.train()
+            self.train_mode()
 
             action = torch.squeeze(action).cpu().detach().numpy()
             log_prob = log_prob.cpu().detach().numpy()
@@ -103,6 +109,7 @@ class Agent:
     def evaluate(self, states, actions, prev_actions):
         cur_values = self.Critic(states)
         _, cur_log_probs = self.Actor(states, prev_actions, actions)
+
         cur_values = torch.squeeze(cur_values)
         cur_log_probs = torch.squeeze(cur_log_probs)
         return cur_values, cur_log_probs

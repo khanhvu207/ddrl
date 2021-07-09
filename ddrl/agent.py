@@ -14,7 +14,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 
 class Agent:
-    def __init__(self, state_size, action_size, config, device):
+    def __init__(self, state_size, action_size, config, device, neptune):
         self.state_size = state_size
         self.action_size = action_size
         self.eps = 1e-10
@@ -46,6 +46,9 @@ class Agent:
         # Threadlocks
         self._weights_lock = threading.Lock()
         self.synced = False
+
+        # Neptune
+        self.neptune = neptune
 
     def eval_mode(self):
         self.Actor.eval()
@@ -156,6 +159,8 @@ class Agent:
 
         mean_score = np.mean(scores)
         print(f"Evaluation score: {mean_score}")
+        if self.neptune is not None:
+            self.neptune["eval/score"].log(mean_score)
         if mean_score > self.best_score:
             print(f"The agent has improved from the last evaluation! Saving weight...")
             self.best_score = mean_score

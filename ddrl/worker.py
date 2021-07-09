@@ -12,6 +12,7 @@ from .agent import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = 'cpu'
 
+
 class Worker:
     def __init__(self, config):
         self.config = config
@@ -26,7 +27,11 @@ class Worker:
         self.obs_dim = self.env.observation_space.shape[0]
         self.act_dim = self.env.action_space.shape[0]
         self.agent = Agent(
-            state_size=self.obs_dim, action_size=self.act_dim, config=config, device=device
+            state_size=self.obs_dim,
+            action_size=self.act_dim,
+            config=config,
+            device=device,
+            neptune=None,
         )
         self.msg_buffer_len = 65536
         self.msg_length_padding = 15
@@ -93,7 +98,7 @@ class Worker:
                 "actions": [],
                 "prev_actions": [],
                 "log_probs": [],
-                "rewards": []
+                "rewards": [],
             }
             total_t = 0
             while total_t < self.batch_size:
@@ -126,7 +131,7 @@ class Worker:
                     state = observation
                     if done:
                         break
-                
+
                 trajectory["states"].append(states)
                 trajectory["actions"].append(actions)
                 trajectory["prev_actions"].append(prev_acts)
@@ -138,7 +143,8 @@ class Worker:
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
                 print(
-                    f"Average score: {mean_score:.2f}, Buffer: {total_t}/{self.batch_size}")
+                    f"Average score: {mean_score:.2f}, Buffer: {total_t}/{self.batch_size}"
+                )
                 self.eps_count += 1
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:

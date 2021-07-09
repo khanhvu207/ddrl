@@ -15,6 +15,8 @@ from .synchronizer import Synchronizer
 
 import torch
 
+import neptune.new as neptune
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -31,11 +33,19 @@ class Learner:
         self.act_dim = self.env.action_space.shape[0]
         self.env.close()
 
+        # Neptune.ai
+        self.run = neptune.init(
+            mode=config["neptune"]["mode"],
+            project=config["neptune"]["project"],
+            api_token=config["neptune"]["api_token"],
+        )
+
         self.agent = Agent(
             state_size=self.obs_dim,
             action_size=self.act_dim,
             config=config,
             device=device,
+            neptune=self.run
         )
 
         self.eps_count = 0
@@ -50,6 +60,8 @@ class Learner:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
+
+        
 
     def _bind_server(self):
         self.server.bind(("", self.port))

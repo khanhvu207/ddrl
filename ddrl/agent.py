@@ -1,6 +1,7 @@
 from .networks import *
 from .utils import *
 
+import time
 import torch
 import threading
 import numpy as np
@@ -26,8 +27,8 @@ class Agent:
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
         # Optimizers
-        self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr)
-        self.critic_optim = Adam(self.Critic.parameters(), lr=self.lr)
+        self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr, weight_decay=1e-5)
+        self.critic_optim = Adam(self.Critic.parameters(), lr=self.lr, weight_decay=1e-5)
 
         # Threadlocks
         self._weights_lock = threading.Lock()
@@ -66,26 +67,12 @@ class Agent:
         Proximal Policy Optimization
         Pseudocode: https://spinningup.openai.com/en/latest/algorithms/ppo.html
         """
-        states, actions, prev_actions, log_probs, rewards2go = minibatch
+        states, actions, prev_actions, log_probs, vs, advantages = minibatch
 
-        with torch.no_grad():
-            self.Critic.eval()
-            values = self.Critic(states)
-            self.Critic.train()
-        
-        values = torch.squeeze(values)
-
-        # 5. Compute avantages
-        advantages = rewards2go - values
-        advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
-        advantages.to(self.device)
-
-        # 6. Multi-step gradient descent
-        with self._weights_lock:
-            for _ in range(self.learning_steps):
+        for _ in range(self.learning_steps):
+                
                 cur_values, cur_log_probs = self.evaluate(states, actions, prev_actions)
 
-                # Compute the ratio between current probs and old probs
                 ratios = torch.exp(cur_log_probs - log_probs)
 
                 # PPO-Clip objective
@@ -94,17 +81,18 @@ class Agent:
                     torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
                 )
                 actor_loss = actor_loss.mean()
-                critic_loss = nn.MSELoss()(cur_values, rewards2go)
+                critic_loss = nn.MSELoss()(cur_values, vs)
 
-                self.actor_optim.zero_grad()
-                actor_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.Actor.parameters(), self.max_grad_norm)
-                self.actor_optim.step()
-                
-                self.critic_optim.zero_grad()
-                critic_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
-                self.critic_optim.step()
+                with self._weights_lock:
+                    self.actor_optim.zero_grad()
+                    actor_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.Actor.parameters(), self.max_grad_norm)
+                    self.actor_optim.step()
+                    
+                    self.critic_optim.zero_grad()
+                    critic_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.Critic.parameters(), self.max_grad_norm)
+                    self.critic_optim.step()
 
     def evaluate(self, states, actions, prev_actions):
         cur_values = self.Critic(states)

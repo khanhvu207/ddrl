@@ -14,4 +14,6 @@ def vtrace(values, returns, rewards, gamma, rhos, cs):
     vs = np.array(vs_minus_v_xs) + np.array(values)
     vs_t_plus_1 = np.concatenate((vs[1:], returns[-1:]))
     advantages = rewards + gamma * vs_t_plus_1 - values
+
+    # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
     return vs, advantages

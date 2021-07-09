@@ -1,3 +1,4 @@
+import time
 import torch
 import random
 import threading
@@ -19,12 +20,13 @@ class Buffer:
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",
-            field_names=["state", "action", "prev_actions", "log_prob", "reward"],
+            field_names=["states", "actions", "prev_actions", "log_probs", "vs", "advantages"],
         )
 
         self._buffer_lock = threading.Lock()
 
     def add(self, trajectory):
+        
         for i in range(len(trajectory["states"])):
             states = trajectory["states"][i]
             actions = trajectory["actions"][i]
@@ -35,13 +37,11 @@ class Buffer:
 
             with torch.no_grad():
                 with self.agent._weights_lock:
-                    self.agent.eval_mode()
                     cur_values, cur_log_probs = self.agent.evaluate(
                         states=torch.Tensor(states).to(device),
                         actions=torch.Tensor(actions).to(device),
                         prev_actions=torch.Tensor(prev_actions).to(device),
                     )
-                    self.agent.train_mode()
 
             cur_values = cur_values.cpu().detach().numpy()
             cur_log_probs = cur_log_probs.cpu().detach().numpy()
@@ -49,7 +49,7 @@ class Buffer:
             rhos = np.clip(unclipped_rhos, 0.0, 1.0)
             cs = np.clip(unclipped_rhos, 0.0, 1.0)
             
-            vtrace(
+            vs, advantages = vtrace(
                 values=cur_values,
                 returns=returns,
                 rewards=rewards,
@@ -58,18 +58,18 @@ class Buffer:
                 cs=cs,
             )
             
-
+        
             for j in range(len(states)):
                 e = self.experience(
                     states[i],
                     actions[i],
                     prev_actions[i],
                     log_probs[i],
-                    returns[i],
+                    vs[i],
+                    advantages[i]
                 )
                 with self._buffer_lock:
                     self.memory.append(e)
-        print("Buffer updated")
 
     def __len__(self):
         return len(self.memory)
@@ -78,24 +78,27 @@ class Buffer:
         with self._buffer_lock:
             experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = torch.Tensor([e.state for e in experiences if e is not None]).to(
+        states = torch.Tensor([e.states for e in experiences if e is not None]).to(
             device
         )
-        actions = torch.Tensor([e.action for e in experiences if e is not None]).to(
+        actions = torch.Tensor([e.actions for e in experiences if e is not None]).to(
             device
         )
         prev_actions = torch.Tensor(
             [e.prev_actions for e in experiences if e is not None]
         ).to(device)
-        log_probs = torch.Tensor([e.log_prob for e in experiences if e is not None]).to(
+        log_probs = torch.Tensor([e.log_probs for e in experiences if e is not None]).to(
             device
         )
-        rewards = torch.Tensor([e.reward for e in experiences if e is not None]).to(
+        vs = torch.Tensor([e.vs for e in experiences if e is not None]).to(
+            device
+        )
+        advantages = torch.Tensor([e.advantages for e in experiences if e is not None]).to(
             device
         )
 
         log_probs = torch.squeeze(log_probs)
-        return states, actions, prev_actions, log_probs, rewards
+        return states, actions, prev_actions, log_probs, vs, advantages
 
     def _compute_returns(self, rewards):
         returns = []

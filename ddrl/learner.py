@@ -56,7 +56,8 @@ class Learner:
         self.server.listen(5)
         print(f"Start a new learner on PORT {self.port}")
         f = self.executor.submit(self._server_listener)
-        f.result()
+        if self.config["debug"]:
+            f.result()
 
     def _server_listener(self):
         while True:

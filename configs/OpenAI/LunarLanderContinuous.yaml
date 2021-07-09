@@ -7,22 +7,23 @@ learner:
     port: 23333
 
   network:
-    gru_seq_len: 24
-    batch_size: 512
+    gru_seq_len: 16
+    batch_size: 256
     learning_steps: 5
     clip: 0.2
-    lr: 0.0003
+    lr: 0.00003
 
   batcher:
     buffer_size: 100000
-    gamma: 0.97
+    gamma: 0.98
 
   utils:
     seed: 2021
 
 worker:
   max_t: 500
-  batch_size: 1000
+  batch_size: 1024
   save_every: 200
   sync_every: 3
-  
+
+debug: False

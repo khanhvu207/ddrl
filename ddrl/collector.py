@@ -10,14 +10,15 @@ class Collector:
         self.buffer = buffer
         self.synchronizer = synchronizer
 
-        self.msg_buffer_len = 65536
+        self.msg_buffer_len = 500000
         self.msg_length_padding = 15
 
         self.executor = concurrent.futures.ThreadPoolExecutor()
 
     def got_new_worker(self, client, address):
         f = self.executor.submit(self._worker_handler, client, address)
-        f.result()
+        if (self.config["debug"]):
+            f.result()
         
     def _worker_handler(self, client, address):
         client_ip, client_port = address
@@ -37,6 +38,7 @@ class Collector:
                     batch = pickle.loads(data)
                     self.buffer.add(batch)
                     counter += 1
+                    print('Buffer updated')
                     if counter % self.config["worker"]["sync_every"] == 0:
                         self.synchronizer.send_weights(client)
                     new_msg = True

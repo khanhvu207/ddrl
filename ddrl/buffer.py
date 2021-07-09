@@ -7,11 +7,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Buffer:
-    def __init__(self, config):
+    def __init__(self, config, agent):
         self.buffer_size = config["learner"]["batcher"]["buffer_size"]
         self.gamma = config["learner"]["batcher"]["gamma"]
         self.batch_size = config["learner"]["network"]["batch_size"]
-
+        self.agent = agent
+        
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",

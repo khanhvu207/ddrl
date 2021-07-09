@@ -40,7 +40,7 @@ class Learner:
 
         self.eps_count = 0
 
-        self.buffer = Buffer(config=config)
+        self.buffer = Buffer(config=config, agent=self.agent)
         self.synchronizer = Synchronizer(config=config, agent=self.agent)
         self.collector = Collector(
             config=config, buffer=self.buffer, synchronizer=self.synchronizer

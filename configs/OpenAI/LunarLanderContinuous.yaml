@@ -22,7 +22,7 @@ learner:
 
 worker:
   max_t: 500
-  batch_size: 100
+  batch_size: 1000
   save_every: 200
   sync_every: 3
   

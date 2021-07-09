@@ -15,24 +15,30 @@ class Buffer:
         self.memory = deque(maxlen=self.buffer_size)
         self.experience = namedtuple(
             "Experience",
-            field_names=["state", "action", "prev_actions", "log_prob", "reward", "done"],
+            field_names=["state", "action", "prev_actions", "log_prob", "reward"],
         )
 
         self._buffer_lock = threading.Lock()
 
     def add(self, trajectory):
-        rw2go = self._compute_reward_to_go(trajectory["rewards"])
-        for i in range(len(rw2go)):
-            e = self.experience(
-                trajectory["states"][i],
-                trajectory["actions"][i],
-                trajectory["prev_actions"][i],
-                trajectory["log_probs"][i],
-                rw2go[i],
-                trajectory["dones"][i],
-            )
-            with self._buffer_lock:
-                self.memory.append(e)
+        for i in range(len(trajectory["states"])):
+            states = trajectory["states"][i]
+            actions = trajectory["actions"][i]
+            prev_actions = trajectory["prev_actions"][i]
+            log_probs = trajectory["log_probs"][i]
+            returns = self._compute_returns(trajectory["rewards"][i])
+            rewards = trajectory["rewards"][i]
+
+            for j in range(len(states)):
+                e = self.experience(
+                    states[i],
+                    actions[i],
+                    prev_actions[i],
+                    log_probs[i],
+                    returns[i],
+                )
+                with self._buffer_lock:
+                    self.memory.append(e)
         print("Buffer updated")
 
     def __len__(self):
@@ -61,11 +67,10 @@ class Buffer:
         log_probs = torch.squeeze(log_probs)
         return states, actions, prev_actions, log_probs, rewards
 
-    def _compute_reward_to_go(self, rewards):
-        rw2go = []
-        for eps_reward in reversed(rewards):
-            discounted_reward = 0
-            for reward in reversed(eps_reward):
-                discounted_reward = reward + discounted_reward * self.gamma
-                rw2go.append(discounted_reward)
-        return rw2go[::-1]
+    def _compute_returns(self, rewards):
+        returns = []
+        discounted_reward = 0
+        for reward in reversed(rewards):
+            discounted_reward = reward + discounted_reward * self.gamma
+            returns.append(discounted_reward)
+        return returns[::-1]

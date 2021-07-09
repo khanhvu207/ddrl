@@ -93,14 +93,18 @@ class Worker:
                 "actions": [],
                 "prev_actions": [],
                 "log_probs": [],
-                "rewards": [],
-                "dones": [],
+                "rewards": []
             }
             total_t = 0
             while total_t < self.batch_size:
-                eps_reward = []
                 score = 0
                 state = self.env.reset()
+                states = []
+                actions = []
+                prev_acts = []
+                log_probs = []
+                eps_reward = []
+
                 prev_actions = deque(
                     [np.zeros(self.act_dim) for _ in range(self.gru_seq_len)],
                     maxlen=self.gru_seq_len,
@@ -112,19 +116,21 @@ class Worker:
                     )
                     observation, reward, done, info = self.env.step(action)
                     prev_actions.append(action)
-
-                    trajectory["states"].append(state)
-                    trajectory["actions"].append(action)
-                    trajectory["prev_actions"].append(prev_actions)
-                    trajectory["log_probs"].append(log_prob)
-                    trajectory["dones"].append(done)
+                    states.append(state)
+                    actions.append(action)
+                    prev_acts.append(prev_actions)
+                    log_probs.append(log_prob)
                     eps_reward.append(reward)
                     score += reward
                     total_t += 1
                     state = observation
                     if done:
                         break
-
+                
+                trajectory["states"].append(states)
+                trajectory["actions"].append(actions)
+                trajectory["prev_actions"].append(prev_acts)
+                trajectory["log_probs"].append(log_probs)
                 trajectory["rewards"].append(eps_reward)
                 self.scores.append(score)
                 self.scores_window.append(score)
@@ -132,7 +138,7 @@ class Worker:
                 mean_score = np.mean(self.scores_window)
                 self.means.append(mean_score)
                 print(
-                    f"Average score: {mean_score:.2f}, Buffer: {len(trajectory['states'])}/{self.batch_size}")
+                    f"Average score: {mean_score:.2f}, Buffer: {total_t}/{self.batch_size}")
                 self.eps_count += 1
 
                 if self.eps_count % self.config["worker"]["save_every"] == 0:

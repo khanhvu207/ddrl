@@ -13,6 +13,10 @@ from .buffer import Buffer
 from .collector import Collector
 from .synchronizer import Synchronizer
 
+import torch
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 class Learner:
     def __init__(self, config):
@@ -28,7 +32,10 @@ class Learner:
         self.env.close()
 
         self.agent = Agent(
-            state_size=self.obs_dim, action_size=self.act_dim, config=config
+            state_size=self.obs_dim,
+            action_size=self.act_dim,
+            config=config,
+            device=device,
         )
 
         self.eps_count = 0

@@ -7,10 +7,8 @@ import numpy as np
 from torch.optim import Adam
 from torch.cuda.amp import GradScaler, autocast
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 class Agent:
-    def __init__(self, state_size, action_size, config):
+    def __init__(self, state_size, action_size, config, device):
         self.state_size = state_size
         self.action_size = action_size
         self.eps = 1e-10
@@ -19,9 +17,10 @@ class Agent:
         self.lr = config["learner"]["network"]["lr"]
         self.seed = config["learner"]["utils"]["seed"]
         self.max_grad_norm = 1.0
+        self.device = device
 
         # Networks
-        self.Actor = ActorNetwork(state_size=state_size, action_size=action_size).to(
+        self.Actor = ActorNetwork(state_size=state_size, action_size=action_size, device=device).to(
             device
         )
         self.Critic = CriticNetwork(state_size=state_size).to(device)
@@ -35,8 +34,8 @@ class Agent:
         self.synced = False
 
     def act(self, state, prev_actions):
-        prev_actions = torch.Tensor(prev_actions).to(device)
-        state = torch.Tensor(state).to(device)
+        prev_actions = torch.Tensor(prev_actions).to(self.device)
+        state = torch.Tensor(state).to(self.device)
         prev_actions = torch.unsqueeze(prev_actions, dim=0)
         state = torch.unsqueeze(state, dim=0)
 
@@ -73,7 +72,7 @@ class Agent:
         # 5. Compute avantages
         advantages = rewards2go - values
         advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
-        advantages.to(device)
+        advantages.to(self.device)
 
         # 6. Multi-step gradient descent
         with self._weights_lock:

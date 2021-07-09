@@ -2,14 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 
 class ActorNetwork(nn.Module):
     def __init__(
         self,
         state_size,
         action_size,
+        device,
         seed=2021,
         hidden_size1=128,
         hidden_size2=128,
@@ -19,6 +18,7 @@ class ActorNetwork(nn.Module):
         self.seed = torch.manual_seed(seed)
         self.hidden_size1 = hidden_size1
         self.hidden_size2 = hidden_size2
+        self.device = device
         self.fc1 = nn.Linear(state_size, hidden_size1)
         self.fc2 = nn.Linear(hidden_size1, hidden_size2)
         self.fc3 = nn.Linear(hidden_size2 * 2, action_size)
@@ -35,7 +35,7 @@ class ActorNetwork(nn.Module):
         x = F.relu(self.fc2(x))
 
         # Action context head
-        h0 = torch.zeros(self.gru_layers, prev_actions.size(0), self.hidden_size2).to(device)
+        h0 = torch.zeros(self.gru_layers, prev_actions.size(0), self.hidden_size2).to(self.device)
         y, _ = self.gru(prev_actions, h0)
         y = y[:, -1, :]
 

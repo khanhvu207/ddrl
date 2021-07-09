@@ -9,6 +9,8 @@ from collections import deque
 
 from .agent import *
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = 'cpu'
 
 class Worker:
     def __init__(self, config):
@@ -24,7 +26,7 @@ class Worker:
         self.obs_dim = self.env.observation_space.shape[0]
         self.act_dim = self.env.action_space.shape[0]
         self.agent = Agent(
-            state_size=self.obs_dim, action_size=self.act_dim, config=config
+            state_size=self.obs_dim, action_size=self.act_dim, config=config, device=device
         )
         self.msg_buffer_len = 65536
         self.msg_length_padding = 15

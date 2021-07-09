@@ -1,6 +1,7 @@
 venv/
 gym/
 __pycache__/
+.neptune/
 
 # Weights
 *.pth

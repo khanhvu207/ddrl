@@ -2,9 +2,9 @@ import yaml
 import fire
 from ddrl.worker import Worker
 
-def main(config=None):
+def main(config=None, debug=False):
     config = yaml.load(open(config, "r"), Loader=yaml.Loader)
-    worker = Worker(config)
+    worker = Worker(config, debug=debug)
     worker.run()
 
 if __name__ == '__main__':

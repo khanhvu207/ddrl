@@ -15,7 +15,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 import neptune.new as neptune
 
 class Worker:
-    def __init__(self, config):
+    def __init__(self, config, debug):
         self.config = config
         self.env_name = config["env"]["env-name"]
         self.ip = config["learner"]["socket"]["ip"]
@@ -28,7 +28,7 @@ class Worker:
         self.neptune = neptune.init(
             project=config["neptune"]["project"],
             api_token=config["neptune"]["api_token"],
-            mode=config["neptune"]["mode"]
+            mode='debug' if debug else 'async'
         )
 
         self.neptune["environment"] = self.env_name

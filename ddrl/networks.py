@@ -17,7 +17,7 @@ class ActorNetwork(nn.Module):
         self.fc1 = nn.Linear(state_size, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, 64)
-        self.fc4 = nn.Linear(64, action_size)
+        self.fc4 = nn.Linear(128, action_size)
         self.gate = F.relu
 
         self.lstm = nn.LSTM(input_size=action_size, hidden_size=64, batch_first=True)
@@ -30,15 +30,15 @@ class ActorNetwork(nn.Module):
         x = self.gate(self.fc1(state))
         x = self.gate(self.fc2(x))
         x = self.gate(self.fc3(x))
-        z = torch.tanh(self.fc4(x))
+        # z = torch.tanh(self.fc4(x))
 
         # Action context head
-        # y, _ = self.lstm(prev_actions)
-        # y = y[:, -1, :]
+        y, _ = self.lstm(prev_actions)
+        y = y[:, -1, :]
 
         # Concat
-        # z = torch.cat([x, y], dim=1)
-        # z = torch.tanh(self.fc4(z))
+        z = torch.cat([x, y], dim=1)
+        z = torch.tanh(self.fc4(z))
         
         dist = torch.distributions.MultivariateNormal(z, self.cov_mat)
         if action is None:

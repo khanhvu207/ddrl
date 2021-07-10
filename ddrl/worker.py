@@ -12,6 +12,7 @@ from .agent import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = 'cpu'
 
+import neptune.new as neptune
 
 class Worker:
     def __init__(self, config):
@@ -21,7 +22,21 @@ class Worker:
         self.port = config["learner"]["socket"]["port"]
         self.max_t = config["worker"]["max_t"]
         self.batch_size = config["worker"]["batch_size"]
-        self.gru_seq_len = config["learner"]["network"]["gru_seq_len"]
+        self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
+
+        # Neptune.ai
+        self.neptune = neptune.init(
+            project=config["neptune"]["project"],
+            api_token=config["neptune"]["api_token"],
+            mode=config["neptune"]["mode"]
+        )
+
+        self.neptune["environment"] = self.env_name
+        self.neptune["batch size"] = self.batch_size
+        self.neptune["learning steps"] = config["learner"]["network"]["learning_steps"]
+        self.neptune["loss target"] = config["learner"]["network"]["loss_target"]
+        self.neptune["lambda"] = config["learner"]["network"]["lambda"]
+        self.neptune["policy clip"] = config["learner"]["network"]["clip"]
 
         self.env = gym.make(self.env_name)
         self.obs_dim = self.env.observation_space.shape[0]
@@ -40,6 +55,8 @@ class Worker:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._connect_to_server()
         self.executor.submit(self._listen_to_server)
+
+        self.lock = threading.Lock()
 
         # Monitoring
         self.eps_count = 0
@@ -78,21 +95,21 @@ class Worker:
                 pass
 
     def _sync(self, network_weights):
-        self.agent.sync(
-            actor_weight=network_weights["actor"],
-            critic_weight=network_weights["critic"],
-        )
-        print("Weights synced!")
+        with self.lock:
+            self.agent.sync(
+                actor_weight=network_weights["actor"],
+                critic_weight=network_weights["critic"],
+            )
+            print("Weights synced!")
 
-        if not self.has_weight:
-            self.has_weight = True
-            self.executor.submit(self.run)
+            if not self.has_weight:
+                self.has_weight = True
+                # self.executor.submit(self.run)
 
     def run(self):
         while True:
             if not self.agent.synced:
                 continue
-            time.sleep(0)
             trajectory = {
                 "states": [],
                 "actions": [],
@@ -111,47 +128,52 @@ class Worker:
                 eps_reward = []
 
                 prev_actions = deque(
-                    [np.zeros(self.act_dim) for _ in range(self.gru_seq_len)],
-                    maxlen=self.gru_seq_len,
+                    [np.zeros(self.act_dim) for _ in range(self.rnn_seq_len)],
+                    maxlen=self.rnn_seq_len,
                 )
 
-                for t in range(self.max_t):
-                    action, log_prob, value = self.agent.act(
-                        state, prev_actions=prev_actions
-                    )
-                    observation, reward, done, info = self.env.step(action)
-                    prev_actions.append(action)
-                    states.append(state)
-                    actions.append(action)
-                    prev_acts.append(prev_actions)
-                    log_probs.append(log_prob)
-                    eps_reward.append(reward)
-                    score += reward
-                    total_t += 1
-                    state = observation
-                    if done:
-                        break
+                with self.lock:
+                    for t in range(self.max_t):
+                        action, log_prob, value = self.agent.act(
+                            state, prev_actions=prev_actions
+                        )
+                        observation, reward, done, info = self.env.step(action)
+                        prev_actions.append(action)
+                        states.append(state)
+                        actions.append(action)
+                        prev_acts.append(prev_actions)
+                        log_probs.append(log_prob)
+                        eps_reward.append(reward)
+                        score += reward
+                        total_t += 1
+                        state = observation
+                        if done:
+                            break
 
-                trajectory["states"].append(states)
-                trajectory["actions"].append(actions)
-                trajectory["prev_actions"].append(prev_acts)
-                trajectory["log_probs"].append(log_probs)
-                trajectory["rewards"].append(eps_reward)
-                self.scores.append(score)
-                self.scores_window.append(score)
+                    trajectory["states"].append(states)
+                    trajectory["actions"].append(actions)
+                    trajectory["prev_actions"].append(prev_acts)
+                    trajectory["log_probs"].append(log_probs)
+                    trajectory["rewards"].append(eps_reward)
+                    self.scores.append(score)
+                    self.scores_window.append(score)
+                    self.neptune["score"].log(score)
 
-                mean_score = np.mean(self.scores_window)
-                self.means.append(mean_score)
-                print(
-                    f"Average score: {mean_score:.2f}, Buffer: {total_t}/{self.batch_size}"
-                )
-                self.eps_count += 1
+                    mean_score = np.mean(self.scores_window)
+                    self.means.append(mean_score)
+                    self.neptune["avg_score"].log(mean_score)
+                    self.eps_count += 1
 
-                if self.eps_count % self.config["worker"]["save_every"] == 0:
-                    self.agent.save_weights()
-                    print("Save weights")
+                    if self.eps_count % self.config["worker"]["save_every"] == 0:
+                        self.agent.save_weights()
+                        print("Save weights")
+            
+            print(
+                f"Average score: {self.means[-1]:.2f}"
+            )
 
             self._send_collected_experience(trajectory)
+            del trajectory
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

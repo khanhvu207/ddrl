@@ -15,8 +15,6 @@ from .synchronizer import Synchronizer
 
 import torch
 
-import neptune.new as neptune
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -33,19 +31,12 @@ class Learner:
         self.act_dim = self.env.action_space.shape[0]
         self.env.close()
 
-        # Neptune.ai
-        self.run = neptune.init(
-            mode=config["neptune"]["mode"],
-            project=config["neptune"]["project"],
-            api_token=config["neptune"]["api_token"],
-        )
-
         self.agent = Agent(
             state_size=self.obs_dim,
             action_size=self.act_dim,
             config=config,
             device=device,
-            neptune=self.run
+            neptune=None
         )
 
         self.eps_count = 0
@@ -84,7 +75,7 @@ class Learner:
     def step(self):
         while True:
             time.sleep(0)
-            if len(self.buffer) >= self.config["learner"]["network"]["batch_size"]:
+            if len(self.buffer) > 0:
                 print(f"Step {self.eps_count}, learning...")
                 self.agent.learn(self.buffer.sample())
                 self.synchronizer.update_weights()

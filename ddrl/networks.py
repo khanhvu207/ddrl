@@ -10,38 +10,35 @@ class ActorNetwork(nn.Module):
         action_size,
         device,
         seed=2021,
-        hidden_size1=128,
-        hidden_size2=128,
-        gru_layers=1,
     ):
         super(ActorNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
-        self.hidden_size1 = hidden_size1
-        self.hidden_size2 = hidden_size2
         self.device = device
-        self.fc1 = nn.Linear(state_size, hidden_size1)
-        self.fc2 = nn.Linear(hidden_size1, hidden_size2)
-        self.fc3 = nn.Linear(hidden_size2 * 2, action_size)
+        self.fc1 = nn.Linear(state_size, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 64)
+        self.fc4 = nn.Linear(64, action_size)
+        self.gate = F.relu
 
-        self.gru_layers = gru_layers
-        self.gru = nn.GRU(input_size=action_size, hidden_size=hidden_size2, num_layers=gru_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size=action_size, hidden_size=64, batch_first=True)
 
         self.cov_var = torch.full(size=(action_size,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var).to(device)
 
     def forward(self, state, prev_actions, action=None):
         # Action head
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
+        x = self.gate(self.fc1(state))
+        x = self.gate(self.fc2(x))
+        x = self.gate(self.fc3(x))
+        z = torch.tanh(self.fc4(x))
 
         # Action context head
-        h0 = torch.zeros(self.gru_layers, prev_actions.size(0), self.hidden_size2).to(self.device)
-        y, _ = self.gru(prev_actions, h0)
-        y = y[:, -1, :]
+        # y, _ = self.lstm(prev_actions)
+        # y = y[:, -1, :]
 
-        # Concat [x, y]
-        z = torch.cat([x, y], dim=1)
-        z = torch.tanh(self.fc3(z))
+        # Concat
+        # z = torch.cat([x, y], dim=1)
+        # z = torch.tanh(self.fc4(z))
         
         dist = torch.distributions.MultivariateNormal(z, self.cov_mat)
         if action is None:
@@ -52,16 +49,19 @@ class ActorNetwork(nn.Module):
 
 class CriticNetwork(nn.Module):
     def __init__(
-        self, state_size, seed=2021, hidden_size1=256, hidden_size2=256
+        self, state_size, seed=2021
     ):
         super(CriticNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
-        self.fc1 = nn.Linear(state_size, hidden_size1)
-        self.fc2 = nn.Linear(hidden_size1, hidden_size2)
-        self.fc3 = nn.Linear(hidden_size2, 1)
+        self.fc1 = nn.Linear(state_size, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 64)
+        self.fc4 = nn.Linear(64, 1)
+        self.gate = F.relu
 
     def forward(self, state):
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.gate(self.fc1(state))
+        x = self.gate(self.fc2(x))
+        x = self.gate(self.fc3(x))
+        x = self.fc4(x)
         return x

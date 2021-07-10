@@ -22,12 +22,12 @@ class Agent:
         self.clip = config["learner"]["network"]["clip"]
         self.lr = config["learner"]["network"]["lr"]
         self.seed = config["learner"]["utils"]["seed"]
-        self.max_grad_norm = 1.0
+        self.max_grad_norm = config["learner"]["network"]["max_grad_norm"]
         self.device = device
 
         self.env_name = config["env"]["env-name"]
         self.env = gym.make(self.env_name)
-        self.gru_seq_len = config["learner"]["network"]["gru_seq_len"]
+        self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
         self.max_t = config["worker"]["max_t"]
         self.best_score = -math.inf
 
@@ -143,8 +143,8 @@ class Agent:
             score = 0
             state = self.env.reset()
             prev_actions = deque(
-                [np.zeros(self.action_size) for _ in range(self.gru_seq_len)],
-                maxlen=self.gru_seq_len,
+                [np.zeros(self.action_size) for _ in range(self.rnn_seq_len)],
+                maxlen=self.rnn_seq_len,
             )
 
             for t in range(self.max_t):

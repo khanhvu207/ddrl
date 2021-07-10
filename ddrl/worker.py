@@ -32,10 +32,11 @@ class Worker:
         )
 
         self.neptune["environment"] = self.env_name
-        self.neptune["batch size"] = self.batch_size
+        self.neptune["batch size"] = config["learner"]["network"]["batch_size"]
         self.neptune["learning steps"] = config["learner"]["network"]["learning_steps"]
         self.neptune["loss target"] = config["learner"]["network"]["loss_target"]
         self.neptune["lambda"] = config["learner"]["network"]["lambda"]
+        self.neptune["gamma"] = config["learner"]["batcher"]["gamma"]
         self.neptune["policy clip"] = config["learner"]["network"]["clip"]
 
         self.env = gym.make(self.env_name)

@@ -34,6 +34,5 @@ worker:
 debug: False
 
 neptune:
-  mode: async
   project: khanhvu207/ddrl
   api_token: eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3MzYwMjRlNy1mOGZiLTQ1YjYtOWU4OS1mY2E4Y2EwZmRlY2EifQ==

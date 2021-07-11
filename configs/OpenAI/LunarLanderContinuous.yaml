@@ -11,13 +11,13 @@ learner:
     batch_size: 1024
     learning_steps: 3
     max_grad_norm: 1.0
-    clip: 0.1
+    clip: 0.15
     lr: 0.0005
     lambda: 0.9
     loss_target: vtrace
 
   batcher:
-    buffer_size: 1000
+    buffer_size: 100
     gamma: 0.99
 
   utils:

@@ -44,7 +44,7 @@ class ActorNetwork(nn.Module):
         if action is None:
             action = dist.sample()
         log_prob = dist.log_prob(action)
-        return action, log_prob
+        return action, log_prob, dist.entropy()
 
 
 class CriticNetwork(nn.Module):

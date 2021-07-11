@@ -64,7 +64,7 @@ class Buffer:
 
             with torch.no_grad():
                 with self.agent._weights_lock:
-                    cur_values, cur_log_probs = self.agent.compute(
+                    cur_values, cur_log_probs, _ = self.agent.compute(
                         states=torch.Tensor(states).to(device),
                         actions=torch.Tensor(actions).to(device),
                         prev_actions=torch.Tensor(prev_actions).to(device),

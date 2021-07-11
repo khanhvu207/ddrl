@@ -21,6 +21,7 @@ class Agent:
         self.learning_steps = config["learner"]["network"]["learning_steps"]
         self.clip = config["learner"]["network"]["clip"]
         self.lr = config["learner"]["network"]["lr"]
+        self.entropy_regularization = config["learner"]["network"]["entropy_regularization"]
         self.seed = config["learner"]["utils"]["seed"]
         self.max_grad_norm = config["learner"]["network"]["max_grad_norm"]
         self.device = device
@@ -42,6 +43,9 @@ class Agent:
         self.critic_optim = Adam(
             self.Critic.parameters(), lr=self.lr, weight_decay=1e-5
         )
+
+        # Critic loss
+        self.critic_loss = nn.SmoothL1Loss()
 
         # Threadlocks
         self._weights_lock = threading.Lock()
@@ -68,7 +72,7 @@ class Agent:
         with self._weights_lock:
             self.eval_mode()
             with torch.no_grad():
-                action, log_prob = self.Actor(state, prev_actions)
+                action, log_prob, _ = self.Actor(state, prev_actions)
                 value = self.Critic(state)
             self.train_mode()
 
@@ -87,7 +91,7 @@ class Agent:
 
         for _ in range(self.learning_steps):
 
-            cur_values, cur_log_probs = self.compute(states, actions, prev_actions)
+            cur_values, cur_log_probs, dist_entropy = self.compute(states, actions, prev_actions)
 
             ratios = torch.exp(cur_log_probs - log_probs)
 
@@ -97,7 +101,8 @@ class Agent:
                 torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
             )
             actor_loss = actor_loss.mean()
-            critic_loss = nn.MSELoss()(cur_values, vs)
+            entropy_loss = -self.entropy_regularization * dist_entropy.mean()
+            critic_loss = self.critic_loss(cur_values, vs) + entropy_loss
 
             with self._weights_lock:
                 self.actor_optim.zero_grad()
@@ -116,11 +121,11 @@ class Agent:
 
     def compute(self, states, actions, prev_actions):
         cur_values = self.Critic(states)
-        _, cur_log_probs = self.Actor(states, prev_actions, actions)
+        _, cur_log_probs, entropy = self.Actor(states, prev_actions, actions)
 
         cur_values = torch.squeeze(cur_values)
         cur_log_probs = torch.squeeze(cur_log_probs)
-        return cur_values, cur_log_probs
+        return cur_values, cur_log_probs, entropy
 
     def save_weights(self):
         with self._weights_lock:

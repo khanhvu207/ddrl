@@ -21,7 +21,12 @@ class Agent:
         self.learning_steps = config["learner"]["network"]["learning_steps"]
         self.clip = config["learner"]["network"]["clip"]
         self.lr = config["learner"]["network"]["lr"]
-        self.entropy_regularization = config["learner"]["network"]["entropy_regularization"]
+        self.entropy_regularization = config["learner"]["network"][
+            "entropy_regularization"
+        ]
+        self.entropy_regularization_decay = config["learner"]["network"][
+            "entropy_regularization_decay"
+        ]
         self.seed = config["learner"]["utils"]["seed"]
         self.max_grad_norm = config["learner"]["network"]["max_grad_norm"]
         self.device = device
@@ -91,7 +96,9 @@ class Agent:
 
         for _ in range(self.learning_steps):
 
-            cur_values, cur_log_probs, dist_entropy = self.compute(states, actions, prev_actions)
+            cur_values, cur_log_probs, dist_entropy = self.compute(
+                states, actions, prev_actions
+            )
 
             ratios = torch.exp(cur_log_probs - log_probs)
 
@@ -118,6 +125,10 @@ class Agent:
                     self.Critic.parameters(), self.max_grad_norm
                 )
                 self.critic_optim.step()
+
+        self.entropy_regularization = max(
+            0.0, self.entropy_regularization * self.entropy_regularization_decay
+        )
 
     def compute(self, states, actions, prev_actions):
         cur_values = self.Critic(states)

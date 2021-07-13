@@ -1,3 +1,4 @@
+import os
 import gym
 import time
 import pickle
@@ -18,7 +19,7 @@ import neptune.new as neptune
 class Worker:
     def __init__(self, config, debug):
         # Set seed
-        set_seed()
+        set_seed(seed=os.getpid())
 
         self.config = config
         self.env_name = config["env"]["env-name"]
@@ -27,7 +28,7 @@ class Worker:
         self.max_t = config["worker"]["max_t"]
         self.batch_size = config["worker"]["batch_size"]
         self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
-        self.seed = config["learner"]["utils"]["seed"]
+        self.seed = os.getpid()
 
         # Neptune.ai
         self.neptune = neptune.init(

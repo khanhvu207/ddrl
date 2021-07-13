@@ -78,7 +78,7 @@ class Learner:
 
     def step(self):
         while True:
-            time.sleep(0)
+            time.sleep(0.15)
             if len(self.buffer) > 0:
                 print(f"Step {self.eps_count}, learning...")
                 self.agent.learn(self.buffer.sample())

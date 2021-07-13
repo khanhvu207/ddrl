@@ -6,6 +6,7 @@ import socket
 import threading
 import numpy as np
 import concurrent.futures
+from datetime import datetime
 from collections import deque
 
 from .agent import *
@@ -15,6 +16,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = 'cpu'
 
 import neptune.new as neptune
+
 
 class Worker:
     def __init__(self, config, debug):
@@ -28,13 +30,15 @@ class Worker:
         self.max_t = config["worker"]["max_t"]
         self.batch_size = config["worker"]["batch_size"]
         self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
+        self.save_dir = config["worker"]["result_dir"]
+        self.save_res_every = config["worker"]["save_res_every"]
         self.seed = os.getpid()
 
         # Neptune.ai
         self.neptune = neptune.init(
             project=config["neptune"]["project"],
             api_token=config["neptune"]["api_token"],
-            mode='debug' if debug else 'async'
+            mode="debug" if debug else "async",
         )
 
         self.neptune["environment"] = self.env_name
@@ -173,16 +177,25 @@ class Worker:
                     self.neptune["avg_score"].log(mean_score)
                     self.eps_count += 1
 
-                    if self.eps_count % self.config["worker"]["save_every"] == 0:
-                        self.agent.save_weights()
-                        print("Save weights")
-            
-            print(
-                f"Average score: {self.means[-1]:.2f}"
-            )
-
+            print(f"Average score: {self.means[-1]:.2f}")
             self._send_collected_experience(trajectory)
+            self.save_results()
             del trajectory
+
+    def save_results(self):
+        res = {
+            "scores": self.scores,
+            "scores_window": self.scores_window,
+            "means": self.means,
+        }
+        filepath = os.path.join(
+            self.save_dir,
+            f"result-{os.getpid()}-" + datetime.now().strftime("%Y_%m_%d"),
+        )
+
+        print("Saving results...")
+        with open(f"{filepath}.pickle", "wb") as f:
+            pickle.dump(res, f)
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

@@ -22,7 +22,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Learner:
     def __init__(self, config):
         # Set seed
-        set_seed()
+        set_seed(seed=config["learner"]["seed"])
 
         # Configs
         self.config = config
@@ -40,7 +40,7 @@ class Learner:
             action_size=self.act_dim,
             config=config,
             device=device,
-            neptune=None
+            neptune=None,
         )
 
         self.eps_count = 0
@@ -55,8 +55,6 @@ class Learner:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
-
-        
 
     def _bind_server(self):
         self.server.bind(("", self.port))

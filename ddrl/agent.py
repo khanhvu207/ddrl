@@ -29,7 +29,6 @@ class Agent:
         self.entropy_regularization_decay = config["learner"]["network"][
             "entropy_regularization_decay"
         ]
-        self.seed = config["learner"]["utils"]["seed"]
         self.max_grad_norm = config["learner"]["network"]["max_grad_norm"]
         self.device = device
 
@@ -38,6 +37,8 @@ class Agent:
         self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
         self.max_t = config["worker"]["max_t"]
         self.best_score = -math.inf
+        self.means = []
+        self.scores_window = deque(maxlen=100)
 
         # Networks
         self.Actor = ActorNetwork(
@@ -54,7 +55,7 @@ class Agent:
         )
 
         # Critic loss
-        self.critic_loss = nn.MSELoss() #nn.SmoothL1Loss()
+        self.critic_loss = nn.MSELoss()  # nn.SmoothL1Loss()
 
         # Threadlocks
         self._weights_lock = threading.Lock()
@@ -159,8 +160,7 @@ class Agent:
             self.synced = True
 
     def evaluate(self):
-        scores = []
-        for _ in range(20):
+        for _ in range(1):
             score = 0
             state = self.env.reset()
             prev_actions = deque(
@@ -176,9 +176,10 @@ class Agent:
                 if done:
                     break
 
-            scores.append(score)
+            self.scores_window.append(score)
 
-        mean_score = np.mean(scores)
+        mean_score = np.mean(self.scores_window)
+        self.means.append(mean_score)
         print(f"Evaluation score: {mean_score}")
         if self.neptune is not None:
             self.neptune["eval/score"].log(mean_score)

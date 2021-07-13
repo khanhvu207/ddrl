@@ -2,6 +2,8 @@ env:
   env-name: LunarLanderContinuous-v2
 
 learner:
+  seed: 2021
+
   socket:
     ip: 127.0.0.1
     port: 23333
@@ -22,17 +24,15 @@ learner:
   batcher:
     buffer_size: 100
     gamma: 0.99
-
-  utils:
-    seed: 2021
   
-  eval_every: 1000
+  eval_every: 10
 
 worker:
   max_t: 1000
   batch_size: 1000
-  save_every: 1000
   sync_every: 1
+  save_res_every: 10
+  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/LunarLanderContinuous-v2
 
 debug: False
 

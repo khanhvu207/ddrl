@@ -18,9 +18,11 @@ class Agent:
         self.state_size = state_size
         self.action_size = action_size
         self.eps = 1e-10
+
         self.learning_steps = config["learner"]["network"]["learning_steps"]
         self.clip = config["learner"]["network"]["clip"]
-        self.lr = config["learner"]["network"]["lr"]
+        self.actor_lr = config["learner"]["network"]["actor_lr"]
+        self.critic_lr = config["learner"]["network"]["critic_lr"]
         self.entropy_regularization = config["learner"]["network"][
             "entropy_regularization"
         ]
@@ -44,13 +46,15 @@ class Agent:
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
         # Optimizers
-        self.actor_optim = Adam(self.Actor.parameters(), lr=self.lr, weight_decay=1e-5)
+        self.actor_optim = Adam(
+            self.Actor.parameters(), lr=self.actor_lr, weight_decay=1e-5
+        )
         self.critic_optim = Adam(
-            self.Critic.parameters(), lr=self.lr, weight_decay=1e-5
+            self.Critic.parameters(), lr=self.critic_lr, weight_decay=1e-5
         )
 
         # Critic loss
-        self.critic_loss = nn.SmoothL1Loss()
+        self.critic_loss = nn.MSELoss() #nn.SmoothL1Loss()
 
         # Threadlocks
         self._weights_lock = threading.Lock()
@@ -75,11 +79,11 @@ class Agent:
 
         # Get action and state's value
         with self._weights_lock:
-            self.eval_mode()
             with torch.no_grad():
+                self.eval_mode()
                 action, log_prob, _ = self.Actor(state, prev_actions)
                 value = self.Critic(state)
-            self.train_mode()
+                self.train_mode()
 
             action = torch.squeeze(action).cpu().detach().numpy()
             log_prob = log_prob.cpu().detach().numpy()
@@ -107,9 +111,10 @@ class Agent:
                 ratios * advantages,
                 torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
             )
+            entropy_loss = -self.entropy_regularization * dist_entropy
+            actor_loss = actor_loss + entropy_loss
             actor_loss = actor_loss.mean()
-            entropy_loss = -self.entropy_regularization * dist_entropy.mean()
-            critic_loss = self.critic_loss(cur_values, vs) + entropy_loss
+            critic_loss = self.critic_loss(cur_values, vs)
 
             with self._weights_lock:
                 self.actor_optim.zero_grad()
@@ -155,7 +160,7 @@ class Agent:
 
     def evaluate(self):
         scores = []
-        for _ in range(5):
+        for _ in range(20):
             score = 0
             state = self.env.reset()
             prev_actions = deque(

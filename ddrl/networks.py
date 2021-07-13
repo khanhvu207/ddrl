@@ -1,61 +1,50 @@
 import torch
+from torch import distributions
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class ActorNetwork(nn.Module):
-    def __init__(
-        self,
-        state_size,
-        action_size,
-        device,
-        seed=2021,
-    ):
+    def __init__(self, state_size, action_size, device):
         super(ActorNetwork, self).__init__()
-        self.seed = torch.manual_seed(seed)
+        self.state_size = state_size
+        self.action_size = action_size
         self.device = device
         self.fc1 = nn.Linear(state_size, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 64)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(128, action_size)
+        self.fc5 = nn.Linear(128, action_size)
         self.gate = F.relu
 
         self.lstm = nn.LSTM(input_size=action_size, hidden_size=64, batch_first=True)
-
-        self.cov_var = torch.full(size=(action_size,), fill_value=0.5)
-        self.cov_mat = torch.diag(self.cov_var).to(device)
+        self.std_offset = 0
+        self.std_controlling_minimal = 0
 
     def forward(self, state, prev_actions, action=None):
-        # Action head
         x = self.gate(self.fc1(state))
         x = self.gate(self.fc2(x))
         x = self.gate(self.fc3(x))
-        # z = torch.tanh(self.fc4(x))
-
-        # Action context head
         y, _ = self.lstm(prev_actions)
         y = y[:, -1, :]
-
-        # Concat
         z = torch.cat([x, y], dim=1)
-        z = torch.tanh(self.fc4(z))
-        
-        dist = torch.distributions.MultivariateNormal(z, self.cov_mat)
+        mean, std_logit = self.fc4(z), self.fc5(z)
+        std = nn.Softplus()(std_logit + self.std_offset) + self.std_controlling_minimal
+        dist = torch.distributions.Normal(loc=mean, scale=std, validate_args=False)
         if action is None:
-            action = dist.sample()
-        log_prob = dist.log_prob(action)
-        return action, log_prob, dist.entropy()
+            action = torch.tanh(dist.sample())
+        log_prob = dist.log_prob(value=action).sum(dim=1)
+        entropy = dist.entropy().sum(dim=1)
+        return action, log_prob, entropy
 
 
 class CriticNetwork(nn.Module):
-    def __init__(
-        self, state_size, seed=2021
-    ):
+    def __init__(self, state_size, seed=2021):
         super(CriticNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
         self.fc1 = nn.Linear(state_size, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 64)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 1)
         self.gate = F.relu
 

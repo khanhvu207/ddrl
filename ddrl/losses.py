@@ -18,10 +18,9 @@ def vtrace(values, returns, rewards, gamma, rhos, cs, lmbd):
     vs_t_plus_1 = np.concatenate((vs[1:], returns[-1:]))
     advantages = rewards + gamma * vs_t_plus_1 - values
 
-    # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
     return vs, advantages
 
-def custom(values, returns):
+def ppo_loss(values, returns):
     return returns, returns - values
 
 def compute_target(loss, values, returns, rewards, gamma, rhos, cs, lmbd):
@@ -29,5 +28,5 @@ def compute_target(loss, values, returns, rewards, gamma, rhos, cs, lmbd):
         return monte_carlo(values, returns)
     elif loss == 'vtrace':
         return vtrace(values, returns, rewards, gamma, rhos, cs, lmbd)
-    elif loss == 'custom':
-        return custom(values, returns)
+    elif loss == 'ppo_loss':
+        return ppo_loss(values, returns)

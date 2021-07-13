@@ -8,6 +8,7 @@ import concurrent.futures
 from collections import deque
 
 from .agent import *
+from .utils import set_seed
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = 'cpu'
@@ -16,6 +17,9 @@ import neptune.new as neptune
 
 class Worker:
     def __init__(self, config, debug):
+        # Set seed
+        set_seed()
+
         self.config = config
         self.env_name = config["env"]["env-name"]
         self.ip = config["learner"]["socket"]["ip"]
@@ -23,6 +27,7 @@ class Worker:
         self.max_t = config["worker"]["max_t"]
         self.batch_size = config["worker"]["batch_size"]
         self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
+        self.seed = config["learner"]["utils"]["seed"]
 
         # Neptune.ai
         self.neptune = neptune.init(
@@ -38,8 +43,10 @@ class Worker:
         self.neptune["lambda"] = config["learner"]["network"]["lambda"]
         self.neptune["gamma"] = config["learner"]["batcher"]["gamma"]
         self.neptune["policy clip"] = config["learner"]["network"]["clip"]
+        self.neptune["seed"] = self.seed
 
         self.env = gym.make(self.env_name)
+        self.env.seed(self.seed)
         self.obs_dim = self.env.observation_space.shape[0]
         self.act_dim = self.env.action_space.shape[0]
         self.agent = Agent(

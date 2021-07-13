@@ -58,20 +58,22 @@ class Buffer:
                 experiences = random.sample(population=self.memory, k=1)    
 
             states, actions, prev_actions, log_probs, returns, rewards = experiences[0]
-            # rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-10)
             
             total_sample += len(states)
-
-            with torch.no_grad():
-                with self.agent._weights_lock:
+            
+            with self.agent._weights_lock:
+                with torch.no_grad():
+                    self.agent.eval_mode()
                     cur_values, cur_log_probs, _ = self.agent.compute(
                         states=torch.Tensor(states).to(device),
                         actions=torch.Tensor(actions).to(device),
                         prev_actions=torch.Tensor(prev_actions).to(device),
                     )
+                    self.agent.train_mode()
 
             cur_values = cur_values.cpu().detach().numpy()
             cur_log_probs = cur_log_probs.cpu().detach().numpy()
+
             unclipped_rhos = np.exp(cur_log_probs - np.squeeze(np.array(log_probs)))
             rhos = np.clip(unclipped_rhos, 0.0, 1.0)
             cs = np.clip(unclipped_rhos, 0.0, 1.0)
@@ -116,6 +118,4 @@ class Buffer:
         for reward in reversed(rewards):
             discounted_reward = reward + discounted_reward * self.gamma
             returns.append(discounted_reward)
-        
-        # returns = (returns - np.mean(returns)) / (np.std(returns) + 1e-10)
         return returns[::-1]

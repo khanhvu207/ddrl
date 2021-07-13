@@ -12,6 +12,7 @@ from .agent import Agent
 from .buffer import Buffer
 from .collector import Collector
 from .synchronizer import Synchronizer
+from .utils import set_seed
 
 import torch
 
@@ -20,6 +21,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Learner:
     def __init__(self, config):
+        # Set seed
+        set_seed()
+
         # Configs
         self.config = config
         self.env_name = config["env"]["env-name"]

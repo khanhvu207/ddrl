@@ -1,0 +1,42 @@
+env:
+  env-name: BipedalWalker-v3
+
+learner:
+  seed: 2021
+
+  socket:
+    ip: 127.0.0.1
+    port: 23333
+
+  network:
+    rnn_seq_len: 10
+    batch_size: 1024
+    learning_steps: 1
+    max_grad_norm: 1.0
+    clip: 0.2
+    actor_lr: 0.00002
+    critic_lr: 0.0002
+    lambda: 0.9
+    entropy_regularization: 0.0
+    entropy_regularization_decay: 0.99
+    loss_target: ppo_loss
+
+  batcher:
+    buffer_size: 100
+    gamma: 0.99
+  
+  eval_every: 10
+
+worker:
+  max_t: 1000
+  batch_size: 1000
+  sync_every: 1
+  save_res_every: 10
+  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/BipedalWalker-v3
+  solve_score: 300
+
+debug: False
+
+neptune:
+  project: khanhvu207/ddrl
+  api_token: eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI3MzYwMjRlNy1mOGZiLTQ1YjYtOWU4OS1mY2E4Y2EwZmRlY2EifQ==

@@ -10,16 +10,23 @@ class ActorNetwork(nn.Module):
         self.state_size = state_size
         self.action_size = action_size
         self.device = device
-        self.fc1 = nn.Linear(state_size, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, 64)
+        self.fc1 = nn.Linear(state_size, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 64)
         self.fc4 = nn.Linear(128, action_size)
         self.fc5 = nn.Linear(128, action_size)
-        self.gate = F.relu
+        self.gate = torch.tanh
 
         self.lstm = nn.LSTM(input_size=action_size, hidden_size=64, batch_first=True)
         self.std_offset = 0
         self.std_controlling_minimal = 0
+
+    def _init_weights_and_bias(self):
+        for name, layer in self._modules.items():
+            if "lstm" in name:
+                continue
+            nn.init.xavier_uniform_(layer.weight)
+            nn.init.zeros_(layer.bias)
 
     def forward(self, state, prev_actions, action=None):
         x = self.gate(self.fc1(state))
@@ -46,7 +53,12 @@ class CriticNetwork(nn.Module):
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 1)
-        self.gate = F.relu
+        self.gate = torch.tanh
+
+    def _init_weights_and_bias(self):
+        for name, layer in self._modules.items():
+            nn.init.xavier_uniform_(layer.weight)
+            nn.init.zeros_(layer.bias)
 
     def forward(self, state):
         x = self.gate(self.fc1(state))

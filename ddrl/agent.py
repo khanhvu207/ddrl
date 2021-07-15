@@ -46,6 +46,10 @@ class Agent:
         ).to(device)
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
+        # Initialize weights
+        self.Actor._init_weights_and_bias()
+        self.Critic._init_weights_and_bias()
+
         # Optimizers
         self.actor_optim = Adam(
             self.Actor.parameters(), lr=self.actor_lr, weight_decay=1e-5
@@ -183,7 +187,3 @@ class Agent:
         print(f"Evaluation score: {mean_score}")
         if self.neptune is not None:
             self.neptune["eval/score"].log(mean_score)
-        if mean_score > self.best_score:
-            print(f"The agent has improved from the last evaluation! Saving weight...")
-            self.best_score = mean_score
-            self.save_weights()

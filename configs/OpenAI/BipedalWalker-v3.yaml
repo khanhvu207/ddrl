@@ -13,9 +13,9 @@ learner:
     batch_size: 1024
     learning_steps: 1
     max_grad_norm: 1.0
-    clip: 0.15
-    actor_lr: 0.00002
-    critic_lr: 0.0002
+    clip: 0.1
+    actor_lr: 0.00003
+    critic_lr: 0.0003
     lambda: 0.9
     entropy_regularization: 0.0
     entropy_regularization_decay: 0.99
@@ -23,7 +23,7 @@ learner:
 
   batcher:
     buffer_size: 100
-    gamma: 0.95
+    gamma: 0.99
   
   eval_every: 10
 
@@ -32,7 +32,7 @@ worker:
   batch_size: 1000
   sync_every: 1
   save_res_every: 10
-  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/BipedalWalker-v3
+  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/BipedalWalker-v3/
   solve_score: 300
 
 debug: False

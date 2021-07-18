@@ -2,6 +2,7 @@ venv/
 gym/
 __pycache__/
 .neptune/
+.ipynb_checkpoints
 
 # Files
 *.pth

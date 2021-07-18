@@ -197,7 +197,7 @@ class Worker:
         }
         filepath = os.path.join(
             self.save_dir,
-            f"result-{os.getpid()}-" + datetime.now().strftime("%Y_%m_%d"),
+            f"result-{self.seed}-" + datetime.now().strftime("%Y_%m_%d"),
         )
 
         print("Saving results...")

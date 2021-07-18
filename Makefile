@@ -1,12 +1,9 @@
-.PHONY: run
+.PHONY: run_lunar_lander run_bipedal_walker
 
-run1:
-	python3 run_learner.py --config=configs/OpenAI/LunarLanderContinuous.yaml &
-	python3 run_worker.py --config=configs/OpenAI/LunarLanderContinuous.yaml 
+DEBUG ?= True
 
-run4:
-	python3 run_learner.py --config=configs/OpenAI/LunarLanderContinuous.yaml &
-	python3 run_worker.py --config=configs/OpenAI/LunarLanderContinuous.yaml &
-	python3 run_worker.py --config=configs/OpenAI/LunarLanderContinuous.yaml &
-	python3 run_worker.py --config=configs/OpenAI/LunarLanderContinuous.yaml &
-	python3 run_worker.py --config=configs/OpenAI/LunarLanderContinuous.yaml 
+run_lunar_lander: 
+	python3 main.py --env_name=LunarLanderContinuous-v2 --runtime=60 --num_workers=3 --worker_seed=14482 --debug=${DEBUG}
+
+run_bipedal_walker:
+	python3 main.py --env_name=BipedalWalker-v3 --runtime=60 --num_workers=3 --worker_seed=2021 --debug=${DEBUG}

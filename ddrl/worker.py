@@ -1,15 +1,17 @@
+import concurrent.futures
 import os
-import gym
-import time
 import pickle
 import socket
+import sys
 import threading
-import numpy as np
-import concurrent.futures
-from datetime import datetime
+import time
 from collections import deque
+from datetime import datetime
 
-from .agent import *
+import gym
+import numpy as np
+
+from .trainer import *
 from .utils import set_seed
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -19,9 +21,10 @@ import neptune.new as neptune
 
 
 class Worker:
-    def __init__(self, config, debug):
+    def __init__(self, config, seed, debug):
         # Set seed
-        set_seed(seed=os.getpid())
+        self.seed = int(seed)
+        set_seed(seed=self.seed)
 
         self.config = config
         self.env_name = config["env"]["env-name"]
@@ -32,7 +35,7 @@ class Worker:
         self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
         self.save_dir = config["worker"]["result_dir"]
         self.save_res_every = config["worker"]["save_res_every"]
-        self.seed = os.getpid()
+        self.solve_score = config["worker"]["solve_score"]
 
         # Neptune.ai
         self.neptune = neptune.init(
@@ -54,7 +57,7 @@ class Worker:
         self.env.seed(self.seed)
         self.obs_dim = self.env.observation_space.shape[0]
         self.act_dim = self.env.action_space.shape[0]
-        self.agent = Agent(
+        self.agent = Trainer(
             state_size=self.obs_dim,
             action_size=self.act_dim,
             config=config,
@@ -179,7 +182,11 @@ class Worker:
 
             print(f"Average score: {self.means[-1]:.2f}")
             self._send_collected_experience(trajectory)
-            self.save_results()
+            if self.means[-1] > self.solve_score:
+                self.save_results()
+                self.agent.save_weights()
+                sys.exit(0)
+
             del trajectory
 
     def save_results(self):

@@ -8,7 +8,7 @@ import threading
 import concurrent.futures
 from datetime import datetime
 
-from .agent import Agent
+from .trainer import Trainer
 from .buffer import Buffer
 from .collector import Collector
 from .synchronizer import Synchronizer
@@ -35,7 +35,7 @@ class Learner:
         self.act_dim = self.env.action_space.shape[0]
         self.env.close()
 
-        self.agent = Agent(
+        self.agent = Trainer(
             state_size=self.obs_dim,
             action_size=self.act_dim,
             config=config,

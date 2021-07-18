@@ -3,5 +3,6 @@ gym/
 __pycache__/
 .neptune/
 
-# Weights
+# Files
 *.pth
+*.pickle

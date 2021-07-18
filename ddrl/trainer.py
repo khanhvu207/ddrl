@@ -1,4 +1,4 @@
-from .networks import *
+from .networks.openai_net import *
 from .utils import *
 
 import gym
@@ -10,10 +10,9 @@ import numpy as np
 from collections import deque
 
 from torch.optim import Adam
-from torch.cuda.amp import GradScaler, autocast
 
 
-class Agent:
+class Trainer:
     def __init__(self, state_size, action_size, config, device, neptune):
         self.state_size = state_size
         self.action_size = action_size
@@ -47,8 +46,8 @@ class Agent:
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
         # Initialize weights
-        self.Actor._init_weights_and_bias()
-        self.Critic._init_weights_and_bias()
+        # self.Actor._init_weights_and_bias()
+        # self.Critic._init_weights_and_bias()
 
         # Optimizers
         self.actor_optim = Adam(

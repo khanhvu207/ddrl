@@ -35,7 +35,9 @@ class Buffer:
             prev_actions = trajectory["prev_actions"][i]
             log_probs = trajectory["log_probs"][i]
             rewards = trajectory["rewards"][i]
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-10)
+            
+            rewards = np.clip(rewards, -1, 1)
+            # rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-10)
             returns = self._compute_returns(rewards)
             
             with self._buffer_lock:

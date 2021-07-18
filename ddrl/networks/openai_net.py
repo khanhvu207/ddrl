@@ -1,7 +1,7 @@
 import torch
-from torch import distributions
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import distributions
 
 
 class ActorNetwork(nn.Module):
@@ -10,12 +10,12 @@ class ActorNetwork(nn.Module):
         self.state_size = state_size
         self.action_size = action_size
         self.device = device
-        self.fc1 = nn.Linear(state_size, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 64)
+        self.fc1 = nn.Linear(state_size, 512)
+        self.fc2 = nn.Linear(512, 128)
+        self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(128, action_size)
         self.fc5 = nn.Linear(128, action_size)
-        self.gate = torch.tanh
+        self.gate = F.relu
 
         self.lstm = nn.LSTM(input_size=action_size, hidden_size=64, batch_first=True)
         self.std_offset = 0
@@ -53,7 +53,7 @@ class CriticNetwork(nn.Module):
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 1)
-        self.gate = torch.tanh
+        self.gate = F.relu
 
     def _init_weights_and_bias(self):
         for name, layer in self._modules.items():

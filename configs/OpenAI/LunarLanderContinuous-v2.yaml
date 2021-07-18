@@ -32,7 +32,8 @@ worker:
   batch_size: 1000
   sync_every: 1
   save_res_every: 10
-  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/LunarLanderContinuous-v2
+  result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/LunarLanderContinuous-v2/
+  solve_score: 200
 
 debug: False
 

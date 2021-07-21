@@ -5,11 +5,10 @@ from torch import distributions
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, state_size, action_size, device):
+    def __init__(self, state_size, action_size):
         super(ActorNetwork, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
-        self.device = device
         self.fc1 = nn.Linear(state_size, 512)
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
@@ -46,9 +45,8 @@ class ActorNetwork(nn.Module):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, state_size, seed=2021):
+    def __init__(self, state_size):
         super(CriticNetwork, self).__init__()
-        self.seed = torch.manual_seed(seed)
         self.fc1 = nn.Linear(state_size, 512)
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)

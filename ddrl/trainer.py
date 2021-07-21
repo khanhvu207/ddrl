@@ -40,9 +40,9 @@ class Trainer:
         self.scores_window = deque(maxlen=100)
 
         # Networks
-        self.Actor = ActorNetwork(
-            state_size=state_size, action_size=action_size, device=device
-        ).to(device)
+        self.Actor = ActorNetwork(state_size=state_size, action_size=action_size).to(
+            device
+        )
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
         # Initialize weights

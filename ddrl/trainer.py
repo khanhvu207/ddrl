@@ -118,7 +118,7 @@ class Trainer:
             entropy_loss = -self.entropy_regularization * dist_entropy
             actor_loss = actor_loss + entropy_loss
             actor_loss = actor_loss.mean()
-            critic_loss = self.critic_loss(cur_values, vs)
+            critic_loss = 0.5 * self.critic_loss(cur_values, vs)
 
             with self._weights_lock:
                 self.actor_optim.zero_grad()

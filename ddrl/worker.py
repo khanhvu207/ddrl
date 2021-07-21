@@ -149,6 +149,8 @@ class Worker:
                 )
 
                 with self.lock:
+                    self.agent.noise.reset()
+
                     for t in range(self.max_t):
                         action, log_prob, value = self.agent.act(
                             state, prev_actions=prev_actions

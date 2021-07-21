@@ -6,6 +6,3 @@ NWORKERS ?= 3
 
 run_lunar_lander: 
 	python3 main.py --env_name=LunarLanderContinuous-v2 --runtime=${TIME} --num_workers=${NWORKERS} --worker_seed=2021 --debug=${DEBUG}
-
-run_bipedal_walker:
-	python3 main.py --env_name=BipedalWalker-v3 --runtime=${TIME} --num_workers=${NWORKERS} --worker_seed=2021 --debug=${DEBUG}

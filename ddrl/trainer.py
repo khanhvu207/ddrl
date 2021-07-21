@@ -45,9 +45,8 @@ class Trainer:
         )
         self.Critic = CriticNetwork(state_size=state_size).to(device)
 
-        # Initialize weights
-        # self.Actor._init_weights_and_bias()
-        # self.Critic._init_weights_and_bias()
+        # Noise
+        self.noise = OUNoise(size=action_size, seed=config["learner"]["seed"])
 
         # Optimizers
         self.actor_optim = Adam(
@@ -75,7 +74,7 @@ class Trainer:
         self.Actor.train()
         self.Critic.train()
 
-    def act(self, state, prev_actions):
+    def act(self, state, prev_actions, add_noise=False):
         prev_actions = torch.Tensor(prev_actions).to(self.device)
         state = torch.Tensor(state).to(self.device)
         prev_actions = torch.unsqueeze(prev_actions, dim=0)
@@ -90,6 +89,8 @@ class Trainer:
                 self.train_mode()
 
             action = torch.squeeze(action).cpu().detach().numpy()
+            if add_noise:
+                action = action + self.noise.sample()
             log_prob = log_prob.cpu().detach().numpy()
             value = value.cpu().detach().numpy()
 

@@ -1,4 +1,4 @@
-from .networks.openai_net import *
+from .networks.lunar_net import *
 from .utils import *
 
 import gym

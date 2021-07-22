@@ -3,9 +3,9 @@ import fire
 from ddrl.worker import Worker
 
 
-def main(config=None, seed=None, debug=False):
+def main(config=None, seed=None):
     config = yaml.load(open(config, "r"), Loader=yaml.Loader)
-    worker = Worker(config, seed, debug)
+    worker = Worker(config, seed)
     worker.run()
     worker.save_results()
 

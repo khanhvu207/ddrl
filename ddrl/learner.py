@@ -1,3 +1,4 @@
+import os
 import bz2
 import gym
 import json
@@ -15,43 +16,68 @@ from .synchronizer import Synchronizer
 from .utils import set_seed
 
 import torch
+import neptune.new as neptune
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Learner:
-    def __init__(self, config):
+    def __init__(self, config, debug):
         # Set seed
-        set_seed(seed=config["learner"]["seed"])
+        self.seed = config["learner"]["seed"]
+        set_seed(seed=self.seed)
 
         # Configs
         self.config = config
-        self.env_name = config["env"]["env-name"]
-        self.ip = config["learner"]["socket"]["ip"]
-        self.port = config["learner"]["socket"]["port"]
+        self.env_config = config["env"]
+        self.socket_config = config["socket"]
+        self.learner_config = config["learner"]
 
+        self.env_name = self.env_config["env-name"]
+        self.ip = self.socket_config["ip"]
+        self.port = self.socket_config["port"]
+
+        # Get environment's state and action space size
         self.env = gym.make(self.env_name)
         self.obs_dim = self.env.observation_space.shape[0]
-        self.act_dim = self.env.action_space.shape[0]
+        try:
+            self.act_dim = self.env.action_space.shape[0]
+        except:
+            self.act_dim = self.env.action_space.n
         self.env.close()
 
+        # Neptune.ai
+        self.neptune = neptune.init(
+            project=os.environ["NEPTUNE_PROJECT"],
+            api_token=os.environ["NEPTUNE_TOKEN"],
+            mode="debug" if debug else "async",
+        )
+
+        self.neptune["environment"] = self.env_name
+        self.neptune["seed"] = self.seed
+
+        # Trainer
         self.agent = Trainer(
             state_size=self.obs_dim,
             action_size=self.act_dim,
             config=config,
             device=device,
-            neptune=None,
+            neptune=self.neptune,
         )
 
         self.eps_count = 0
 
+        # Dependencies
         self.buffer = Buffer(config=config, agent=self.agent)
         self.synchronizer = Synchronizer(config=config, agent=self.agent)
         self.collector = Collector(
             config=config, buffer=self.buffer, synchronizer=self.synchronizer
         )
 
+        # Threads handler
         self.executor = concurrent.futures.ThreadPoolExecutor()
+
+        # Socket endpoint
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._bind_server()
@@ -61,8 +87,6 @@ class Learner:
         self.server.listen(5)
         print(f"Start a new learner on PORT {self.port}")
         f = self.executor.submit(self._server_listener)
-        if self.config["debug"]:
-            f.result()
 
     def _server_listener(self):
         while True:
@@ -76,12 +100,15 @@ class Learner:
 
     def step(self):
         while True:
-            time.sleep(0.15)
+            time.sleep(
+                0.15  # <- Adjust this accordingly to the number of parallel workers
+            )
             if len(self.buffer) > 0:
                 print(f"Step {self.eps_count}, learning...")
                 self.agent.learn(self.buffer.sample())
                 self.synchronizer.update_weights()
                 self.eps_count += 1
 
+                # Evaluate with the network every K steps
                 if self.eps_count % self.config["learner"]["eval_every"] == 0:
                     self.agent.evaluate()

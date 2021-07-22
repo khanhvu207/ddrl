@@ -11,9 +11,9 @@ class Synchronizer:
         self._lock = threading.Lock()
 
     def update_weights(self):
-        actor_weight, critic_weight = self.agent.get_weights()
+        weight = self.agent.get_weights()
         with self._lock:
-            weight_dict = {"actor": actor_weight, "critic": critic_weight}
+            weight_dict = {"net": weight}
             self.data_string = pickle.dumps(weight_dict)
 
     def send_weights(self, client):

@@ -17,8 +17,6 @@ class Collector:
 
     def got_new_worker(self, client, address):
         f = self.executor.submit(self._worker_handler, client, address)
-        if (self.config["debug"]):
-            f.result()
         
     def _worker_handler(self, client, address):
         client_ip, client_port = address

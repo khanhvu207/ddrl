@@ -1,7 +1,6 @@
 import signal
 import subprocess
 import time
-from re import sub
 
 import fire
 
@@ -15,7 +14,12 @@ def main(env_name=None, runtime=1, num_workers=2, worker_seed=14482, debug=True)
         debug_mode = "True" if debug else "False"
 
         learner = subprocess.Popen(
-            ["python3", "run_learner.py", f"--config=configs//OpenAI//{env_name}.yaml"]
+            [
+                "python3",
+                "run_learner.py",
+                f"--config=configs//OpenAI//{env_name}.yaml",
+                f"--debug={debug}",
+            ]
         )
 
         workers = []
@@ -26,11 +30,9 @@ def main(env_name=None, runtime=1, num_workers=2, worker_seed=14482, debug=True)
                     "run_worker.py",
                     f"--config=configs//OpenAI//{env_name}.yaml",
                     f"--seed={worker_seed}",
-                    f"--debug={debug_mode}",
                 ]
             )
             workers.append(worker)
-            debug_mode = True
             worker_seed += 1
 
         time.sleep(60 * runtime)  # <- 60 seconds x minutes

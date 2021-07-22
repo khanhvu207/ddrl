@@ -4,9 +4,9 @@ from ddrl.learner import Learner
 import time
 
 
-def main(config=None):
+def main(config=None, debug=True):
     config = yaml.load(open(config, "r"), Loader=yaml.Loader)
-    learner = Learner(config)
+    learner = Learner(config, debug)
     learner.step()
 
 

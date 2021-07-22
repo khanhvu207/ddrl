@@ -21,42 +21,32 @@ import neptune.new as neptune
 
 
 class Worker:
-    def __init__(self, config, seed, debug):
+    def __init__(self, config, seed):
         # Set seed
         self.seed = int(seed)
         set_seed(seed=self.seed)
 
+        # Configs
         self.config = config
-        self.env_name = config["env"]["env-name"]
-        self.ip = config["learner"]["socket"]["ip"]
-        self.port = config["learner"]["socket"]["port"]
-        self.max_t = config["worker"]["max_t"]
-        self.batch_size = config["worker"]["batch_size"]
-        self.rnn_seq_len = config["learner"]["network"]["rnn_seq_len"]
-        self.save_dir = config["worker"]["result_dir"]
-        self.save_res_every = config["worker"]["save_res_every"]
-        self.solve_score = config["worker"]["solve_score"]
+        self.env_config = config["env"]
+        self.worker_config = config["worker"]
+        self.socket_config = config["socket"]
 
-        # Neptune.ai
-        self.neptune = neptune.init(
-            project=config["neptune"]["project"],
-            api_token=config["neptune"]["api_token"],
-            mode="debug" if debug else "async",
-        )
-
-        self.neptune["environment"] = self.env_name
-        self.neptune["batch size"] = config["learner"]["network"]["batch_size"]
-        self.neptune["learning steps"] = config["learner"]["network"]["learning_steps"]
-        self.neptune["loss target"] = config["learner"]["network"]["loss_target"]
-        self.neptune["lambda"] = config["learner"]["network"]["lambda"]
-        self.neptune["gamma"] = config["learner"]["batcher"]["gamma"]
-        self.neptune["policy clip"] = config["learner"]["network"]["clip"]
-        self.neptune["seed"] = self.seed
+        self.env_name = self.env_config["env-name"]
+        self.ip = self.socket_config["ip"]
+        self.port = self.socket_config["port"]
+        self.max_t = self.worker_config["max_t"]
+        self.buffer_size = self.worker_config["buffer_size"]
 
         self.env = gym.make(self.env_name)
         self.env.seed(self.seed)
         self.obs_dim = self.env.observation_space.shape[0]
-        self.act_dim = self.env.action_space.shape[0]
+        try:
+            self.act_dim = self.env.action_space.shape[0]
+        except:
+            self.act_dim = self.env.action_space.n
+
+        # Agent
         self.agent = Trainer(
             state_size=self.obs_dim,
             action_size=self.act_dim,
@@ -64,14 +54,20 @@ class Worker:
             device=device,
             neptune=None,
         )
+
+        # Socket configs
         self.msg_buffer_len = 65536
         self.msg_length_padding = 15
 
+        # Threads handler
         self.executor = concurrent.futures.ThreadPoolExecutor()
+
+        # Socket
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._connect_to_server()
         self.executor.submit(self._listen_to_server)
 
+        # Threadlock
         self.lock = threading.Lock()
 
         # Monitoring
@@ -82,6 +78,9 @@ class Worker:
         self.scores_window = deque(maxlen=100)
 
     def _connect_to_server(self):
+        """
+        Connect to the learner, retry if fail
+        """
         while True:
             try:
                 self.s.connect((self.ip, self.port))
@@ -111,16 +110,17 @@ class Worker:
                 pass
 
     def _sync(self, network_weights):
+        """
+        Neural network weights' synchronization
+        """
         with self.lock:
             self.agent.sync(
-                actor_weight=network_weights["actor"],
-                critic_weight=network_weights["critic"],
+                weight=network_weights["net"],
             )
             print("Weights synced!")
 
             if not self.has_weight:
                 self.has_weight = True
-                # self.executor.submit(self.run)
 
     def run(self):
         while True:
@@ -129,37 +129,29 @@ class Worker:
             trajectory = {
                 "states": [],
                 "actions": [],
-                "prev_actions": [],
                 "log_probs": [],
                 "rewards": [],
             }
             total_t = 0
-            while total_t < self.batch_size:
+            while total_t < self.buffer_size:
                 score = 0
                 state = self.env.reset()
                 states = []
                 actions = []
-                prev_acts = []
                 log_probs = []
                 eps_reward = []
-
-                prev_actions = deque(
-                    [np.zeros(self.act_dim) for _ in range(self.rnn_seq_len)],
-                    maxlen=self.rnn_seq_len,
-                )
 
                 with self.lock:
                     self.agent.noise.reset()
 
-                    for t in range(self.max_t):
-                        action, log_prob, value = self.agent.act(
-                            state, prev_actions=prev_actions
+                    # for t in range(self.max_t):
+                    while True:
+                        action, log_prob, value = self.agent.act(state)
+                        observation, reward, done, info = self.env.step(
+                            np.squeeze(action)
                         )
-                        observation, reward, done, info = self.env.step(action)
-                        prev_actions.append(action)
                         states.append(state)
                         actions.append(action)
-                        prev_acts.append(prev_actions)
                         log_probs.append(log_prob)
                         eps_reward.append(reward)
                         score += reward
@@ -170,41 +162,20 @@ class Worker:
 
                     trajectory["states"].append(states)
                     trajectory["actions"].append(actions)
-                    trajectory["prev_actions"].append(prev_acts)
                     trajectory["log_probs"].append(log_probs)
                     trajectory["rewards"].append(eps_reward)
                     self.scores.append(score)
                     self.scores_window.append(score)
-                    self.neptune["score"].log(score)
+                    # self.neptune["score"].log(score)
 
                     mean_score = np.mean(self.scores_window)
                     self.means.append(mean_score)
-                    self.neptune["avg_score"].log(mean_score)
+                    # self.neptune["avg_score"].log(mean_score)
                     self.eps_count += 1
 
-            print(f"Average score: {self.means[-1]:.2f}")
+            # print(f"Average score: {self.means[-1]:.2f}")
             self._send_collected_experience(trajectory)
-            if self.means[-1] > self.solve_score:
-                self.save_results()
-                self.agent.save_weights()
-                sys.exit(0)
-
             del trajectory
-
-    def save_results(self):
-        res = {
-            "scores": self.scores,
-            "scores_window": self.scores_window,
-            "means": self.means,
-        }
-        filepath = os.path.join(
-            self.save_dir,
-            f"result-{self.seed}-" + datetime.now().strftime("%Y_%m_%d"),
-        )
-
-        print("Saving results...")
-        with open(f"{filepath}.pickle", "wb") as f:
-            pickle.dump(res, f)
 
     def _send_collected_experience(self, trajectory):
         data = pickle.dumps(trajectory)

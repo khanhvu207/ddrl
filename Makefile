@@ -19,3 +19,6 @@ run_acrobot: ${OPENAI}/Acrobot-v1/net.pth
 
 eval_cartpole: run_cartpole
 	python3 eval.py --cp=${OPENAI}/CartPole-v1/net.pth --config=${CONFIGS}/OpenAI/CartPole-v1.yaml
+
+eval_acrobot: run_acrobot
+	python3 eval.py --cp=${OPENAI}/Acrobot-v1/net.pth --config=${CONFIGS}/OpenAI/Acrobot-v1.yaml

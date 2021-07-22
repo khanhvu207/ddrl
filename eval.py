@@ -13,7 +13,7 @@ def main(cp=None, config=None):
     print(cp, config)
     config = yaml.load(open(config, "r"), Loader=yaml.Loader)
     env = gym.make(config["env"]["env-name"])
-    env.seed(23333)
+    env.seed(2021)
 
     obs_dim = env.observation_space.shape[0]
     try:
@@ -35,10 +35,10 @@ def main(cp=None, config=None):
     observation = env.reset()
     while True:
         env.render()
-        time.sleep(0.03)
+        time.sleep(0.1)
         logit = agent.net(torch.Tensor(observation).unsqueeze(0))
         action = agent.net.get_best_action(logit["p"]).numpy()
-        observation, reward, done, _ = env.step(np.squeeze(action))
+        observation, reward, done, _ = env.step(np.squeeze(action)-2)
         score += reward
         if done:
             break

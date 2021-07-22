@@ -49,7 +49,7 @@ class Learner:
         # Neptune.ai
         self.neptune = neptune.init(
             project=os.environ["NEPTUNE_PROJECT"],
-            api_token=os.environ["NEPTUNE_TOKEN"],
+            api_token=os.environ["NEPTUNE_API_TOKEN"],
             mode="debug" if debug else "async",
         )
 
@@ -101,7 +101,7 @@ class Learner:
     def step(self):
         while True:
             time.sleep(
-                0.15  # <- Adjust this accordingly to the number of parallel workers
+                0.1  # <- Adjust this accordingly to the number of parallel workers
             )
             if len(self.buffer) > 0:
                 print(f"Step {self.eps_count}, learning...")

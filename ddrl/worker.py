@@ -15,9 +15,6 @@ from .trainer import *
 from .utils import set_seed
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# device = 'cpu'
-
-import neptune.new as neptune
 
 
 class Worker:
@@ -76,6 +73,10 @@ class Worker:
         self.scores = []
         self.means = []
         self.scores_window = deque(maxlen=100)
+
+        # Eps-greedy
+        self.eps_greedy = 1.0
+        self.eps_greedy_decay = 0.99
 
     def _connect_to_server(self):
         """
@@ -144,11 +145,15 @@ class Worker:
                 with self.lock:
                     self.agent.noise.reset()
 
-                    # for t in range(self.max_t):
-                    while True:
-                        action, log_prob, value = self.agent.act(state)
-                        observation, reward, done, info = self.env.step(
-                            np.squeeze(action)
+                    for t in range(self.max_t):
+                        # Exploration
+                        if np.random.rand() <= self.eps_greedy:
+                            action = [np.random.choice(3)]
+                            log_prob = [np.log(self.eps_greedy)] # prob = 1.0 -> ln(1.0) = 0
+                        else:
+                            action, log_prob, _ = self.agent.act(state)
+                        observation, reward, done, _ = self.env.step(
+                            np.squeeze(action)-2
                         )
                         states.append(state)
                         actions.append(action)
@@ -159,6 +164,8 @@ class Worker:
                         state = observation
                         if done:
                             break
+
+                    self.eps_greedy = max(0.0, self.eps_greedy * self.eps_greedy_decay)
 
                     trajectory["states"].append(states)
                     trajectory["actions"].append(actions)
@@ -174,6 +181,7 @@ class Worker:
                     self.eps_count += 1
 
             # print(f"Average score: {self.means[-1]:.2f}")
+            # print(f"Epsilon-greedy: {self.eps_greedy:.5f}")
             self._send_collected_experience(trajectory)
             del trajectory
 

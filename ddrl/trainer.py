@@ -166,13 +166,20 @@ class Trainer:
     def evaluate(self):
         score = 0
         state = self.env.reset()
-        while True:
-            action, _, _ = self.act(state, best_action=True)
-            observation, reward, done, _ = self.env.step(np.squeeze(action))
-            score += reward
-            state = observation
-            if done:
-                break
+
+        with torch.no_grad():
+            with self._weights_lock:
+                self.eval_mode()
+                while True:
+                    logit = self.net(torch.Tensor(state).unsqueeze(0).to(self.device))
+                    action = self.net.get_best_action(logit["p"]).detach().cpu().numpy()
+                    observation, reward, done, _ = self.env.step(np.squeeze(action)-2)
+                    score += reward
+                    state = observation
+                    if done:
+                        break
+                self.train_mode()
+
         self.timepoints.append(time.time() - self.start_time)
         self.scores.append(score)
         self.scores_window.append(score)
@@ -200,7 +207,7 @@ class Trainer:
         }
         filepath = os.path.join(
             self.save_dir,
-            f"result-seed-{self.seed}-" + datetime.now().strftime("%Y_%m_%d"),
+            f"result-seed-{self.seed}-" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
         )
         with open(f"{filepath}.pickle", "wb") as f:
             pickle.dump(res, f)

@@ -43,9 +43,11 @@ class Buffer:
 
             # SANITY CHECK! Should you clip the rewards? It depends...
             # rewards = np.clip(rewards, -1, 1) 
-            # rewards = (np.array(rewards) + 100.0) / 240.0
-            # Or normalize rewards?
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-10)
+
+            # Or normalize rewards? And then clip [-1, 1]
+            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-9)
+            rewards = np.clip(rewards, -1, 1)
+
             returns = self._compute_returns(rewards)
 
             with self._buffer_lock:

@@ -1,4 +1,4 @@
-from .networks.discrete_action_net import BaseNetDisjoint
+from .networks.discrete_action_net import BaseNet, BaseNetDisjoint
 from .utils import OUNoise
 
 import os
@@ -66,7 +66,9 @@ class Trainer:
         self.save_dir = self.learner_config["result_dir"]
 
         # Networks
-        self.net = BaseNetDisjoint(state_size=state_size, action_size=action_size).to(device)
+        self.net = BaseNet(state_size=state_size, action_size=action_size).to(
+            device
+        )
 
         # Noise
         self.noise = OUNoise(size=action_size, seed=config["learner"]["seed"])
@@ -102,9 +104,7 @@ class Trainer:
                 self.eval_mode()
                 logit = self.net(state)
                 value = logit["v"]
-                action = (
-                    self.net.get_action(logit["p"])
-                )
+                action = self.net.get_action(logit["p"])
                 log_prob = self.net.eval_action(logit["p"], action)["log_prob"]
                 self.train_mode()
             action = action.cpu().detach().numpy()
@@ -126,17 +126,25 @@ class Trainer:
         for _ in range(self.learning_steps):
             cur_values, cur_log_probs, entropy = self.compute(states, actions)
 
+            # Compute the policy loss
             ratios = torch.exp(cur_log_probs - log_probs)
             surrogate_loss1 = ratios * advantages
             surrogate_loss2 = (
                 torch.clamp(ratios, 1.0 - self.clip, 1.0 + self.clip) * advantages
             )
-            actor_loss = -torch.min(surrogate_loss1, surrogate_loss2).mean()
-            critic_loss = 0.5 * self.critic_loss(
-                cur_values, vs
-            )  # could change to SmoothLossL1
-            entropy_loss = -(self.entropy_regularization * entropy).mean()
-            total_loss = actor_loss + critic_loss + entropy_loss
+            actor_loss = torch.min(surrogate_loss1, surrogate_loss2)
+
+            # Optimize the policy loss along with the entropy term to encourage exploration
+            actor_loss = actor_loss + self.entropy_regularization * entropy
+            actor_loss = actor_loss.sum()
+
+            # MSE loss
+            critic_loss = self.critic_loss(cur_values, vs)
+
+            # Compose the total loss 
+            # Maximize: actor_loss
+            # Minimize: critic_loss
+            total_loss = -actor_loss + critic_loss
 
             with self._weights_lock:
                 self.optim.zero_grad()
@@ -149,7 +157,7 @@ class Trainer:
             if self.neptune is not None:
                 self.neptune["actor loss"].log(actor_loss)
                 self.neptune["critic loss"].log(critic_loss)
-                self.neptune["entropy loss"].log(entropy_loss)
+                self.neptune["total loss"].log(total_loss)
 
         self.scheduler.step()
         self.entropy_regularization = max(

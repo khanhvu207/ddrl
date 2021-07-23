@@ -13,15 +13,19 @@ class BaseNet(nn.Module):
         super().__init__()
         self.state_size = state_size
         self.action_size = action_size
-        self.fc1 = nn.Linear(state_size, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.gate = F.relu
+        
+        self.gate = nn.ReLU()
+        self.shared_net = nn.Sequential(
+            nn.Linear(state_size, 64), self.gate,
+            nn.Linear(64, 64), self.gate,
+        )
+        
+        # Different heads
         self.policy_head = nn.Linear(64, action_size)
         self.value_head = nn.Linear(64, 1)
 
     def forward(self, state):
-        x = self.gate(self.fc1(state))
-        x = self.gate(self.fc2(x))
+        x = self.shared_net(state)
         return {
             "p": F.softmax(self.policy_head(x), dim=-1),
             "v": self.value_head(x)

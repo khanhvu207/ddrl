@@ -7,6 +7,14 @@ from collections import deque
 def monte_carlo(values, returns):
     return values, returns - values
 
+def td_lambda(values, returns, rewards, gamma, lmbd):
+    v_target = deque([returns[-1]])
+    for i in range(len(values) - 2, -1, -1):
+        reward = rewards[i]
+        v_target.appendleft(reward + gamma * ((1 - lmbd) * values[i + 1] + lmbd * v_target[0]))
+    
+    return v_target, v_target - values
+
 def vtrace(values, returns, rewards, gamma, rhos, cs, lmbd):
     v_t_plus_1 = np.concatenate((values[1:], returns[-1:]))
     deltas = rhos * (rewards + gamma * v_t_plus_1 - values)
@@ -30,3 +38,5 @@ def compute_target(loss, values, returns, rewards, gamma, rhos, cs, lmbd):
         return vtrace(values, returns, rewards, gamma, rhos, cs, lmbd)
     elif loss == 'ppo_loss':
         return ppo_loss(values, returns)
+    elif loss == 'td_lambda':
+        return td_lambda(values, returns, rewards, gamma, lmbd)

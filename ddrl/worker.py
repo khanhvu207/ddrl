@@ -75,7 +75,7 @@ class Worker:
         self.scores_window = deque(maxlen=100)
 
         # Eps-greedy
-        self.eps_greedy = 1.0
+        self.eps_greedy = 0.0
         self.eps_greedy_decay = 0.99
 
     def _connect_to_server(self):
@@ -147,13 +147,13 @@ class Worker:
 
                     for t in range(self.max_t):
                         # Exploration
-                        if np.random.rand() <= self.eps_greedy:
-                            action = [np.random.choice(3)]
-                            log_prob = [np.log(self.eps_greedy)] # prob = 1.0 -> ln(1.0) = 0
-                        else:
-                            action, log_prob, _ = self.agent.act(state)
+                        # if np.random.rand() <= self.eps_greedy:
+                        #     action = [np.random.choice(3)]
+                        #     log_prob = [np.log(self.eps_greedy)] # prob = 1.0 -> ln(1.0) = 0
+                        # else:
+                        action, log_prob, _ = self.agent.act(state)
                         observation, reward, done, _ = self.env.step(
-                            np.squeeze(action)-2
+                            np.squeeze(action)
                         )
                         states.append(state)
                         actions.append(action)

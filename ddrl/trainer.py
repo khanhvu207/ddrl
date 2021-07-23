@@ -1,4 +1,4 @@
-from .networks.discrete_action_net import BaseNet
+from .networks.discrete_action_net import BaseNetDisjoint
 from .utils import OUNoise
 
 import os
@@ -66,13 +66,13 @@ class Trainer:
         self.save_dir = self.learner_config["result_dir"]
 
         # Networks
-        self.net = BaseNet(state_size=state_size, action_size=action_size).to(device)
+        self.net = BaseNetDisjoint(state_size=state_size, action_size=action_size).to(device)
 
         # Noise
         self.noise = OUNoise(size=action_size, seed=config["learner"]["seed"])
 
         # Optimizers
-        self.optim = Adam(self.net.parameters(), lr=self.lr)
+        self.optim = Adam(self.net.parameters(), lr=self.lr, weight_decay=1e-5)
 
         # Scheduler
         self.scheduler = lr_scheduler.StepLR(
@@ -95,7 +95,7 @@ class Trainer:
     def train_mode(self):
         self.net.train()
 
-    def act(self, state, best_action=False):
+    def act(self, state):
         state = torch.Tensor(state).unsqueeze(0).to(self.device)
         with self._weights_lock:
             with torch.no_grad():
@@ -104,8 +104,6 @@ class Trainer:
                 value = logit["v"]
                 action = (
                     self.net.get_action(logit["p"])
-                    if not best_action
-                    else self.net.get_best_action(logit["p"])
                 )
                 log_prob = self.net.eval_action(logit["p"], action)["log_prob"]
                 self.train_mode()
@@ -123,21 +121,22 @@ class Trainer:
 
         # Normalize advantages is a good idea?
         # https://costa.sh/blog-the-32-implementation-details-of-ppo.html
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+        # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
 
         for _ in range(self.learning_steps):
             cur_values, cur_log_probs, entropy = self.compute(states, actions)
 
             ratios = torch.exp(cur_log_probs - log_probs)
-            actor_loss = -torch.min(
-                ratios * advantages,
-                torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * advantages,
+            surrogate_loss1 = ratios * advantages
+            surrogate_loss2 = (
+                torch.clamp(ratios, 1.0 - self.clip, 1.0 + self.clip) * advantages
             )
-            actor_loss = (actor_loss - entropy * self.entropy_regularization).mean()
+            actor_loss = -torch.min(surrogate_loss1, surrogate_loss2).mean()
             critic_loss = 0.5 * self.critic_loss(
                 cur_values, vs
             )  # could change to SmoothLossL1
-            total_loss = actor_loss + critic_loss
+            entropy_loss = -(self.entropy_regularization * entropy).mean()
+            total_loss = actor_loss + critic_loss + entropy_loss
 
             with self._weights_lock:
                 self.optim.zero_grad()
@@ -146,8 +145,13 @@ class Trainer:
                     self.net.parameters(), self.max_grad_norm
                 )
                 self.optim.step()
-                self.scheduler.step()
 
+            if self.neptune is not None:
+                self.neptune["actor loss"].log(actor_loss)
+                self.neptune["critic loss"].log(critic_loss)
+                self.neptune["entropy loss"].log(entropy_loss)
+
+        self.scheduler.step()
         self.entropy_regularization = max(
             0.0, self.entropy_regularization * self.entropy_regularization_decay
         )
@@ -173,7 +177,7 @@ class Trainer:
                 while True:
                     logit = self.net(torch.Tensor(state).unsqueeze(0).to(self.device))
                     action = self.net.get_best_action(logit["p"]).detach().cpu().numpy()
-                    observation, reward, done, _ = self.env.step(np.squeeze(action)-2)
+                    observation, reward, done, _ = self.env.step(np.squeeze(action))
                     score += reward
                     state = observation
                     if done:

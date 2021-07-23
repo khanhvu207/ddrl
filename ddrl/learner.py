@@ -101,7 +101,7 @@ class Learner:
     def step(self):
         while True:
             time.sleep(
-                0.1  # <- Adjust this accordingly to the number of parallel workers
+                0.15  # <- Adjust this accordingly to the number of parallel workers
             )
             if len(self.buffer) > 0:
                 print(f"Step {self.eps_count}, learning...")

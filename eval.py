@@ -38,7 +38,7 @@ def main(cp=None, config=None):
         time.sleep(0.1)
         logit = agent.net(torch.Tensor(observation).unsqueeze(0))
         action = agent.net.get_best_action(logit["p"]).numpy()
-        observation, reward, done, _ = env.step(np.squeeze(action)-2)
+        observation, reward, done, _ = env.step(np.squeeze(action))
         score += reward
         if done:
             break

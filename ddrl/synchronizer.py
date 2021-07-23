@@ -20,4 +20,4 @@ class Synchronizer:
         with self._lock:
             msg = bytes(f"{len(self.data_string):<{15}}", "utf-8") + self.data_string
         client.sendall(msg)
-        print("Weights sent!")
+        # print("Weights sent!")

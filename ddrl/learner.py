@@ -100,14 +100,15 @@ class Learner:
 
     def step(self):
         while True:
-            time.sleep(
-                0.15  # <- Adjust this accordingly to the number of parallel workers
-            )
-            if len(self.buffer) > 0:
+            # time.sleep(
+            #     0.15  # <- Adjust this accordingly to the number of parallel workers
+            # )
+            if len(self.buffer) > 0 and (self.buffer.update_count + 1) % 3 == 0:
                 print(f"Step {self.eps_count}, learning...")
                 self.agent.learn(self.buffer.sample())
                 self.synchronizer.update_weights()
                 self.eps_count += 1
+                self.buffer.update_count = 0
 
                 # Evaluate with the network every K steps
                 if self.eps_count % self.config["learner"]["eval_every"] == 0:

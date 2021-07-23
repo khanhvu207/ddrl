@@ -36,7 +36,7 @@ class Collector:
                     batch = pickle.loads(data)
                     self.buffer.add(batch)
                     counter += 1
-                    print('Buffer updated')
+                    # print('Buffer updated')
                     if counter % self.config["worker"]["sync_every"] == 0:
                         self.synchronizer.send_weights(client)
                     new_msg = True

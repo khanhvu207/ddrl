@@ -118,7 +118,7 @@ class Worker:
             self.agent.sync(
                 weight=network_weights["net"],
             )
-            print("Weights synced!")
+            # print("Weights synced!")
 
             if not self.has_weight:
                 self.has_weight = True

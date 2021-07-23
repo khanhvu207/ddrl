@@ -32,6 +32,7 @@ class Buffer:
         
         # Threadlock
         self._buffer_lock = threading.Lock()
+        self.update_count = 0
 
     def add(self, trajectory):
 
@@ -52,6 +53,8 @@ class Buffer:
 
             with self._buffer_lock:
                 self.memory.append((states, actions, log_probs, returns, rewards))
+        
+        self.update_count += 1
 
     def __len__(self):
         return len(self.memory)

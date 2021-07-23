@@ -46,7 +46,7 @@ class Buffer:
             # rewards = np.clip(rewards, -1, 1) 
 
             # Or normalize rewards? And then clip [-1, 1]
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-9)
+            # rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-9)
             rewards = np.clip(rewards, -1, 1)
 
             returns = self._compute_returns(rewards)

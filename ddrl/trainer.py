@@ -157,7 +157,6 @@ class Trainer:
             if self.neptune is not None:
                 self.neptune["actor loss"].log(actor_loss)
                 self.neptune["critic loss"].log(critic_loss)
-                self.neptune["total loss"].log(total_loss)
 
         self.scheduler.step()
         self.entropy_regularization = max(

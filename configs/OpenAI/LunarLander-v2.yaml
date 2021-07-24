@@ -7,26 +7,26 @@ socket:
 
 learner:
   seed: 2021
-  learning_steps: 1
-  max_grad_norm: 1.0
-  clip: 0.1
-  lr: 0.0002
-  lr_decay: 0.0
+  learning_steps: 3
+  max_grad_norm: 0.5
+  clip: 0.2
+  lr: 0.0001
+  lr_decay: 1.0
   lr_decay_every: 1
-  entropy_regularization: 0.1
+  entropy_regularization: 0.0001
   entropy_regularization_decay: 0.99
-  lambda: 0.95
+  lambda: 0.7
   gamma: 0.99
-  loss_target: ppo_loss
+  loss_target: td_lambda
   eval_every: 3
   solve_score: 200
   result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/LunarLander-v2/
 
 batcher:
-  batch_size: 1024
-  buffer_size: 10
+  batch_size: 512
+  buffer_size: 20
 
 worker:
-  max_t: 1000
+  max_t: 1024
   buffer_size: 1024
   sync_every: 1

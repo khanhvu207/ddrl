@@ -47,7 +47,7 @@ class Buffer:
 
             # Or normalize rewards? And then clip [-1, 1]
             # rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-9)
-            rewards = np.clip(rewards, -1, 1)
+            # rewards = np.clip(rewards, -1, 1)
 
             returns = self._compute_returns(rewards)
 
@@ -66,13 +66,23 @@ class Buffer:
         t_log_probs = []
         t_vs = []
         t_advantages = []
+        
+        # Shuffle the indices of the buffer
+        idx = 0
+        idx_arr = np.arange(len(self))
+        np.random.shuffle(idx_arr)
+
         # Stack the experiences until it exceeds the batch size
         while total_sample < self.batch_size:
-            with self._buffer_lock:
-                # Pick a random trajectory from the buffer
-                experiences = random.sample(population=self.memory, k=1)
+            # If there is no more candidates, break!
+            if idx >= len(idx_arr):
+                break
 
-            states, actions, log_probs, returns, rewards = experiences[0]
+            with self._buffer_lock:
+                experiences = self.memory[idx_arr[idx]]
+                idx += 1
+
+            states, actions, log_probs, returns, rewards = experiences
 
             total_sample += len(states)
 

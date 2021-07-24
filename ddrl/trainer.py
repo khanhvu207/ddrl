@@ -1,4 +1,4 @@
-from .networks.discrete_action_net import BaseNet, BaseNetDisjoint
+from .networks.discrete_action_net import BaseActor, BaseCritic
 from .utils import OUNoise
 
 import os
@@ -66,7 +66,10 @@ class Trainer:
         self.save_dir = self.learner_config["result_dir"]
 
         # Networks
-        self.net = BaseNet(state_size=state_size, action_size=action_size).to(
+        self.actor = BaseActor(state_size=state_size, action_size=action_size).to(
+            device
+        )
+        self.critic = BaseCritic(state_size=state_size, action_size=action_size).to(
             device
         )
 
@@ -74,12 +77,13 @@ class Trainer:
         self.noise = OUNoise(size=action_size, seed=config["learner"]["seed"])
 
         # Optimizers
-        self.optim = Adam(self.net.parameters(), lr=self.lr, weight_decay=1e-5)
+        self.actor_optim = Adam(self.actor.parameters(), lr=2e-4)
+        self.critic_optim = Adam(self.critic.parameters(), lr=2e-3)
 
         # Scheduler
-        self.scheduler = lr_scheduler.StepLR(
-            self.optim, step_size=self.lr_decay_every, gamma=self.lr_decay
-        )
+        # self.scheduler = lr_scheduler.StepLR(
+        #     self.optim, step_size=self.lr_decay_every, gamma=self.lr_decay
+        # )
 
         # Critic loss
         self.critic_loss = nn.MSELoss()  # nn.SmoothL1Loss()
@@ -92,20 +96,25 @@ class Trainer:
         self.neptune = neptune
 
     def eval_mode(self):
-        self.net.eval()
+        self.actor.eval()
+        self.critic.eval()
 
     def train_mode(self):
-        self.net.train()
+        self.actor.train()
+        self.critic.train()
 
     def act(self, state):
         state = torch.Tensor(state).unsqueeze(0).to(self.device)
         with self._weights_lock:
             with torch.no_grad():
                 self.eval_mode()
-                logit = self.net(state)
+                logit = {
+                    "p": self.actor(state),
+                    "v": self.critic(state)
+                }
                 value = logit["v"]
-                action = self.net.get_action(logit["p"])
-                log_prob = self.net.eval_action(logit["p"], action)["log_prob"]
+                action = self.actor.get_action(logit["p"])
+                log_prob = self.actor.eval_action(logit["p"], action)["log_prob"]
                 self.train_mode()
             action = action.cpu().detach().numpy()
             log_prob = log_prob.cpu().detach().numpy()
@@ -121,7 +130,7 @@ class Trainer:
 
         # Normalize advantages is a good idea?
         # https://costa.sh/blog-the-32-implementation-details-of-ppo.html
-        # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
 
         for _ in range(self.learning_steps):
             cur_values, cur_log_probs, entropy = self.compute(states, actions)
@@ -136,7 +145,8 @@ class Trainer:
 
             # Optimize the policy loss along with the entropy term to encourage exploration
             actor_loss = actor_loss + self.entropy_regularization * entropy
-            actor_loss = actor_loss.sum()
+            actor_loss = actor_loss.mean()
+            actor_loss = -actor_loss
 
             # MSE loss
             critic_loss = self.critic_loss(cur_values, vs)
@@ -144,32 +154,42 @@ class Trainer:
             # Compose the total loss 
             # Maximize: actor_loss
             # Minimize: critic_loss
-            total_loss = -actor_loss + critic_loss
+            # total_loss = -actor_loss + critic_loss
 
             with self._weights_lock:
-                self.optim.zero_grad()
-                total_loss.backward()
+                self.actor_optim.zero_grad()
+                actor_loss.backward()
                 torch.nn.utils.clip_grad_norm_(
-                    self.net.parameters(), self.max_grad_norm
+                    self.actor.parameters(), self.max_grad_norm
                 )
-                self.optim.step()
+                self.actor_optim.step()
+
+                self.critic_optim.zero_grad()
+                critic_loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    self.critic.parameters(), self.max_grad_norm
+                )
+                self.critic_optim.step()
 
             if self.neptune is not None:
                 self.neptune["actor loss"].log(actor_loss)
                 self.neptune["critic loss"].log(critic_loss)
 
-        self.scheduler.step()
+        # self.scheduler.step()
         self.entropy_regularization = max(
             0.0, self.entropy_regularization * self.entropy_regularization_decay
         )
         if self.neptune is not None:
-            self.neptune["lr"].log(self.scheduler.get_last_lr())
+            # self.neptune["lr"].log(self.scheduler.get_last_lr())
             self.neptune["entropy coeff"].log(self.entropy_regularization)
 
     def compute(self, states, actions):
-        logit = self.net(states)
+        logit = {
+            "p": self.actor(states),
+            "v": self.critic(states)
+        }
         cur_values = logit["v"]
-        x = self.net.eval_action(logit["p"], actions.squeeze())
+        x = self.actor.eval_action(logit["p"], actions.squeeze())
         cur_log_probs = x["log_prob"]
         entropy = x["entropy"]
         return cur_values.squeeze(), cur_log_probs.squeeze(), entropy
@@ -182,8 +202,12 @@ class Trainer:
             with self._weights_lock:
                 self.eval_mode()
                 while True:
-                    logit = self.net(torch.Tensor(state).unsqueeze(0).to(self.device))
-                    action = self.net.get_best_action(logit["p"]).detach().cpu().numpy()
+                    s = torch.Tensor(state).unsqueeze(0).to(self.device)
+                    logit = {
+                        "p": self.actor(s),
+                        "v": self.critic(s)
+                    }
+                    action = self.actor.get_best_action(logit["p"]).detach().cpu().numpy()
                     observation, reward, done, _ = self.env.step(np.squeeze(action))
                     score += reward
                     state = observation
@@ -196,7 +220,7 @@ class Trainer:
         self.scores_window.append(score)
         mean_score = np.mean(self.scores_window)
         self.means.append(mean_score)
-        print(f"Evaluation score: {mean_score}")
+        print(f"Running mean: {mean_score}")
 
         if self.neptune is not None:
             self.neptune["eval/score"].log(score)
@@ -223,20 +247,28 @@ class Trainer:
         with open(f"{filepath}.pickle", "wb") as f:
             pickle.dump(res, f)
 
-        self.save_weights(self.save_dir)
+        self.save_weights()
 
-    def save_weights(self, path=None):
+    def save_weights(self):
         with self._weights_lock:
             torch.save(
-                self.net.state_dict(),
-                "net.pth" if path is None else os.path.join(self.save_dir, "net.pth"),
+                self.actor.state_dict(),
+                os.path.join(self.save_dir, "actor.pth"),
+            )
+            torch.save(
+                self.critic.state_dict(),
+                os.path.join(self.save_dir, "critic.pth"),
             )
 
     def get_weights(self):
         with self._weights_lock:
-            return self.net.state_dict()
+            return {
+                "actor": self.actor.state_dict(),
+                "critic": self.critic.state_dict()
+            }
 
     def sync(self, weight):
         with self._weights_lock:
-            self.net.load_state_dict(weight)
+            self.actor.load_state_dict(weight["actor"])
+            self.critic.load_state_dict(weight["critic"])
             self.synced = True

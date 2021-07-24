@@ -7,26 +7,26 @@ socket:
 
 learner:
   seed: 2021
-  learning_steps: 1
+  learning_steps: 3
   max_grad_norm: 1.0
   clip: 0.2
-  lr: 0.0002
+  lr: 0.0001
   lr_decay: 1.0  
   lr_decay_every: 1
-  entropy_regularization: 0.01
+  entropy_regularization: 0.0001
   entropy_regularization_decay: 0.99
-  lambda: 1.0
+  lambda: 0.7
   gamma: 0.99
-  loss_target: ppo_loss  
+  loss_target: td_lambda  
   eval_every: 3
-  solve_score: 200
+  solve_score: 500
   result_dir: /home/kvu/ddrl/benchmarks/openai-gyms/CartPole-v1/
 
 batcher:
   batch_size: 512
-  buffer_size: 10
+  buffer_size: 20
 
 worker:
-  max_t: 1000
+  max_t: 1024
   buffer_size: 1024
   sync_every: 3

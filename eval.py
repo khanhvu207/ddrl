@@ -1,3 +1,4 @@
+import os
 import fire
 import yaml
 import gym
@@ -29,19 +30,24 @@ def main(cp=None, config=None):
         neptune=None,
     )
 
-    agent.sync(weight=torch.load(cp))
+    weights = {
+        "actor": torch.load(os.path.join(cp, "actor.pth")),
+        "critic": torch.load(os.path.join(cp, "critic.pth"))
+    }
+
+    agent.sync(weights)
 
     score = 0
     observation = env.reset()
     while True:
         env.render()
-        time.sleep(0.1)
-        logit = agent.net(torch.Tensor(observation).unsqueeze(0))
-        action = agent.net.get_best_action(logit["p"]).numpy()
+        time.sleep(0.01)
+        prob = agent.actor(torch.Tensor(observation).unsqueeze(0))
+        action = agent.actor.get_best_action(prob).numpy()
         observation, reward, done, _ = env.step(np.squeeze(action))
         score += reward
-        if done:
-            break
+        # if done:
+        #     break
     
     print(score)
 

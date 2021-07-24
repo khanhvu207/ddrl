@@ -116,7 +116,7 @@ class Worker:
         """
         with self.lock:
             self.agent.sync(
-                weight=network_weights["net"],
+                weight=network_weights,
             )
             # print("Weights synced!")
 
@@ -144,13 +144,7 @@ class Worker:
 
                 with self.lock:
                     self.agent.noise.reset()
-
                     for t in range(self.max_t):
-                        # Exploration
-                        # if np.random.rand() <= self.eps_greedy:
-                        #     action = [np.random.choice(3)]
-                        #     log_prob = [np.log(self.eps_greedy)] # prob = 1.0 -> ln(1.0) = 0
-                        # else:
                         action, log_prob, _ = self.agent.act(state)
                         observation, reward, done, _ = self.env.step(
                             np.squeeze(action)

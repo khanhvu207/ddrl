@@ -14,10 +14,11 @@ class BaseNet(nn.Module):
         self.state_size = state_size
         self.action_size = action_size
         
-        self.gate = nn.ReLU()
+        self.gate = nn.LeakyReLU()
         self.shared_net = nn.Sequential(
-            nn.Linear(state_size, 64), self.gate,
-            nn.Linear(64, 64), self.gate,
+            nn.Linear(state_size, 256), self.gate,
+            nn.Linear(256, 128), self.gate,
+            nn.Linear(128, 64), self.gate,
         )
         
         # Different heads
@@ -47,37 +48,23 @@ class BaseNet(nn.Module):
             "entropy": dist.entropy()
         }
 
-class BaseNetDisjoint(nn.Module):
-    """
-    Two disjoint networks for policy and value approximation
-    """
+class BaseActor(nn.Module):
     def __init__(self, state_size, action_size):
         super().__init__()
         self.state_size = state_size
         self.action_size = action_size
 
-        # Actor network
-        self.actor_gate = nn.ReLU()
-        self.actor_net = nn.Sequential(
-            nn.Linear(state_size, 64), self.actor_gate,
-            nn.Linear(64, 64), self.actor_gate,
-            nn.Linear(64, action_size)
-
-        )
-
-        # Critic network
-        self.critic_gate = nn.ReLU()
-        self.critic_net = nn.Sequential(
-            nn.Linear(state_size, 64), self.critic_gate,
-            nn.Linear(64, 64), self.critic_gate,
-            nn.Linear(64, 1)
+        self.gate = nn.ReLU()
+        self.net = nn.Sequential(
+            nn.Linear(state_size, 256), self.gate,
+            nn.Linear(256, 128), self.gate,
+            nn.Linear(128, 64), self.gate,
+            nn.Linear(64, action_size),
+            nn.Softmax(dim=-1),
         )
 
     def forward(self, state):
-        return {
-            "p": F.softmax(self.actor_net(state), dim=-1),
-            "v": self.critic_net(state)
-        }
+        return self.net(state)
     
     def get_action(self, prob):
         dist = distributions.Categorical(prob)
@@ -94,4 +81,21 @@ class BaseNetDisjoint(nn.Module):
             "log_prob": dist.log_prob(action),
             "entropy": dist.entropy()
         }
+
+class BaseCritic(nn.Module):
+    def __init__(self, state_size, action_size):
+        super().__init__()
+        self.state_size = state_size
+        self.action_size = action_size
+
+        self.gate = nn.ReLU()
+        self.net = nn.Sequential(
+            nn.Linear(state_size, 256), self.gate,
+            nn.Linear(256, 128), self.gate,
+            nn.Linear(128, 64), self.gate,
+            nn.Linear(64, 1)
+        )
+    
+    def forward(self, state):
+        return self.net(state)
 

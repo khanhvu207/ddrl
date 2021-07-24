@@ -6,4 +6,3 @@ __pycache__/
 
 # Files
 *.pth
-*.pickle

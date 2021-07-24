@@ -8,7 +8,6 @@ OPENAI:= benchmarks/openai-gyms
 CONFIGS:= configs
 
 # Training
-
 run_cartpole:
 	python3 main.py --env_name=CartPole-v1 --runtime=${TIME} --num_workers=${NWORKERS} --worker_seed=2021 --debug=${DEBUG}
 
@@ -19,7 +18,6 @@ run_lunar:
 	python3 main.py --env_name=LunarLander-v2 --runtime=${TIME} --num_workers=${NWORKERS} --worker_seed=2021 --debug=${DEBUG}
 
 # Evaluation
-
 eval_lunar:
 	python3 eval.py --cp=${OPENAI}/LunarLander-v2/ --config=${CONFIGS}/OpenAI/LunarLander-v2.yaml
 
@@ -27,4 +25,4 @@ eval_cartpole:
 	python3 eval.py --cp=${OPENAI}/CartPole-v1/ --config=${CONFIGS}/OpenAI/CartPole-v1.yaml
 
 eval_acrobot:
-	python3 eval.py --cp=${OPENAI}/Acrobot-v1/net.pth --config=${CONFIGS}/OpenAI/Acrobot-v1.yaml
+	python3 eval.py --cp=${OPENAI}/Acrobot-v1/ --config=${CONFIGS}/OpenAI/Acrobot-v1.yaml

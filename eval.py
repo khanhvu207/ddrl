@@ -41,13 +41,13 @@ def main(cp=None, config=None):
     observation = env.reset()
     while True:
         env.render()
-        time.sleep(0.01)
+        time.sleep(0.1)
         prob = agent.actor(torch.Tensor(observation).unsqueeze(0))
         action = agent.actor.get_best_action(prob).numpy()
         observation, reward, done, _ = env.step(np.squeeze(action))
         score += reward
-        # if done:
-        #     break
+        if done:
+            break
     
     print(score)
 

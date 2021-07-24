@@ -220,7 +220,8 @@ class Trainer:
         self.scores_window.append(score)
         mean_score = np.mean(self.scores_window)
         self.means.append(mean_score)
-        print(f"Running mean: {mean_score}")
+        self.best_score = max(self.best_score, mean_score)
+        print(f"Running mean: {mean_score}, >Best={self.best_score}")
 
         if self.neptune is not None:
             self.neptune["eval/score"].log(score)

@@ -20,7 +20,7 @@ This means that we will train an agent for the task `run_lunar` with 3 workers a
 
 ## Plans
 
-We aim to make this framework highly modular and flexible to any algorithms, environments and design choices. For example, we can add custom neural network architectures into the [networks](ddrl/networks) folder and quickly adapts to new set of hyperparamters by modifying or adding [config files](configs).
+We aim to make this framework highly modular and flexible to any algorithms, environments and design choices. For example, we can add custom neural network architectures into the [networks](ddrl/networks) folder and quickly adapts to new sets of hyperparamters by modifying or adding [config files](configs).
 
 Because we are still developing this framework, feel free to make suggestions and report bugs.
 

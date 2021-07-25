@@ -29,7 +29,7 @@ class Buffer:
             "Experience",
             field_names=["states", "actions", "log_probs", "vs", "advantages"],
         )
-        
+
         # Threadlock
         self._buffer_lock = threading.Lock()
         self.update_count = 0
@@ -43,7 +43,7 @@ class Buffer:
             rewards = trajectory["rewards"][i]
 
             # SANITY CHECK! Should you clip the rewards? It depends...
-            # rewards = np.clip(rewards, -1, 1) 
+            # rewards = np.clip(rewards, -1, 1)
 
             # Or normalize rewards? And then clip [-1, 1]
             # rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-9)
@@ -53,7 +53,7 @@ class Buffer:
 
             with self._buffer_lock:
                 self.memory.append((states, actions, log_probs, returns, rewards))
-        
+
         self.update_count += 1
 
     def __len__(self):
@@ -66,7 +66,7 @@ class Buffer:
         t_log_probs = []
         t_vs = []
         t_advantages = []
-        
+
         # Shuffle the indices of the buffer
         idx = 0
         idx_arr = np.arange(len(self))
@@ -101,7 +101,6 @@ class Buffer:
             unclipped_rhos = np.exp(cur_log_probs - np.squeeze(np.array(log_probs)))
             rhos = np.clip(unclipped_rhos, 0.0, 1.0)
             cs = np.clip(unclipped_rhos, 0.0, 1.0)
-
 
             vs, advantages = compute_target(
                 loss=self.learner_config["loss_target"],

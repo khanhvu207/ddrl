@@ -11,7 +11,6 @@ class Synchronizer:
         self._lock = threading.Lock()
 
     def update_weights(self):
-        # weight = self.agent.get_weights()
         with self._lock:
             weight_dict = self.agent.get_weights()
             self.data_string = pickle.dumps(weight_dict)
@@ -20,4 +19,3 @@ class Synchronizer:
         with self._lock:
             msg = bytes(f"{len(self.data_string):<{15}}", "utf-8") + self.data_string
         client.sendall(msg)
-        # print("Weights sent!")

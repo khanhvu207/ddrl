@@ -115,10 +115,7 @@ class Trainer:
         with self._weights_lock:
             with torch.no_grad():
                 self.eval_mode()
-                logit = {
-                    "p": self.actor(state),
-                    "v": self.critic(state)
-                }
+                logit = {"p": self.actor(state), "v": self.critic(state)}
                 value = logit["v"]
                 action = self.actor.get_action(logit["p"])
                 log_prob = self.actor.eval_action(logit["p"], action)["log_prob"]
@@ -158,11 +155,6 @@ class Trainer:
             # MSE loss
             critic_loss = self.critic_loss(cur_values, vs)
 
-            # Compose the total loss 
-            # Maximize: actor_loss
-            # Minimize: critic_loss
-            # total_loss = -actor_loss + critic_loss
-
             with self._weights_lock:
                 self.actor_optim.zero_grad()
                 actor_loss.backward()
@@ -195,10 +187,7 @@ class Trainer:
             self.neptune["entropy coeff"].log(self.entropy_regularization)
 
     def compute(self, states, actions):
-        logit = {
-            "p": self.actor(states),
-            "v": self.critic(states)
-        }
+        logit = {"p": self.actor(states), "v": self.critic(states)}
         cur_values = logit["v"]
         x = self.actor.eval_action(logit["p"], actions.squeeze())
         cur_log_probs = x["log_prob"]
@@ -214,11 +203,10 @@ class Trainer:
                 self.eval_mode()
                 while True:
                     s = torch.Tensor(state).unsqueeze(0).to(self.device)
-                    logit = {
-                        "p": self.actor(s),
-                        "v": self.critic(s)
-                    }
-                    action = self.actor.get_best_action(logit["p"]).detach().cpu().numpy()
+                    logit = {"p": self.actor(s), "v": self.critic(s)}
+                    action = (
+                        self.actor.get_best_action(logit["p"]).detach().cpu().numpy()
+                    )
                     observation, reward, done, _ = self.env.step(np.squeeze(action))
                     score += reward
                     state = observation
@@ -276,7 +264,7 @@ class Trainer:
         with self._weights_lock:
             return {
                 "actor": self.actor.state_dict(),
-                "critic": self.critic.state_dict()
+                "critic": self.critic.state_dict(),
             }
 
     def sync(self, weight):

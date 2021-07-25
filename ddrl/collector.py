@@ -17,7 +17,7 @@ class Collector:
 
     def got_new_worker(self, client, address):
         f = self.executor.submit(self._worker_handler, client, address)
-        
+
     def _worker_handler(self, client, address):
         client_ip, client_port = address
         new_msg = True
@@ -41,4 +41,3 @@ class Collector:
                         self.synchronizer.send_weights(client)
                     new_msg = True
                     data = b""
-        client.close()

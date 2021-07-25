@@ -118,7 +118,6 @@ class Worker:
             self.agent.sync(
                 weight=network_weights,
             )
-            # print("Weights synced!")
 
             if not self.has_weight:
                 self.has_weight = True
@@ -154,20 +153,6 @@ class Worker:
 
                         observation, reward, done, _ = self.env.step(np.squeeze(action))
 
-                        s = np.reshape(state, (1, 2))
-                        next_s = np.reshape(observation, (1, 2))
-                        # Customised reward function
-                        reward = 1000 * (
-                            (
-                                math.sin(3 * next_s[0, 0]) * 0.0025
-                                + 0.5 * next_s[0, 1] * next_s[0, 1]
-                            )
-                            - (
-                                math.sin(3 * s[0, 0]) * 0.0025
-                                + 0.5 * s[0, 1] * s[0, 1]
-                            )
-                        ) 
-
                         states.append(state)
                         actions.append(action)
                         log_probs.append(log_prob)
@@ -175,8 +160,8 @@ class Worker:
                         score += reward
                         total_t += 1
                         state = observation
-                        # if done:
-                        #     break
+                        if done:
+                            break
 
                     self.eps_greedy = max(0.0, self.eps_greedy * self.eps_greedy_decay)
 
@@ -186,15 +171,12 @@ class Worker:
                     trajectory["rewards"].append(eps_reward)
                     self.scores.append(score)
                     self.scores_window.append(score)
-                    # self.neptune["score"].log(score)
 
                     mean_score = np.mean(self.scores_window)
                     self.means.append(mean_score)
-                    # self.neptune["avg_score"].log(mean_score)
                     self.eps_count += 1
 
             # print(f"Average score: {self.means[-1]:.2f}")
-            # print(f"Epsilon-greedy: {self.eps_greedy:.5f}")
             self._send_collected_experience(trajectory)
             del trajectory
 

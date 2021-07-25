@@ -75,7 +75,7 @@ class Worker:
         self.scores_window = deque(maxlen=100)
 
         # Eps-greedy
-        self.eps_greedy = 0.0
+        self.eps_greedy = 1.0
         self.eps_greedy_decay = 0.99
 
     def _connect_to_server(self):
@@ -146,9 +146,28 @@ class Worker:
                     self.agent.noise.reset()
                     for t in range(self.max_t):
                         action, log_prob, _ = self.agent.act(state)
-                        observation, reward, done, _ = self.env.step(
-                            np.squeeze(action)
-                        )
+
+                        # Eps-greedy?
+                        # if np.random.rand() <= self.eps_greedy:
+                        #     action = [np.random.choice(3)]
+                        #     log_prob = [np.log(self.eps_greedy)]
+
+                        observation, reward, done, _ = self.env.step(np.squeeze(action))
+
+                        s = np.reshape(state, (1, 2))
+                        next_s = np.reshape(observation, (1, 2))
+                        # Customised reward function
+                        reward = 1000 * (
+                            (
+                                math.sin(3 * next_s[0, 0]) * 0.0025
+                                + 0.5 * next_s[0, 1] * next_s[0, 1]
+                            )
+                            - (
+                                math.sin(3 * s[0, 0]) * 0.0025
+                                + 0.5 * s[0, 1] * s[0, 1]
+                            )
+                        ) 
+
                         states.append(state)
                         actions.append(action)
                         log_probs.append(log_prob)
@@ -156,8 +175,8 @@ class Worker:
                         score += reward
                         total_t += 1
                         state = observation
-                        if done:
-                            break
+                        # if done:
+                        #     break
 
                     self.eps_greedy = max(0.0, self.eps_greedy * self.eps_greedy_decay)
 

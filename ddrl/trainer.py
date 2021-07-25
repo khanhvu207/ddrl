@@ -81,9 +81,12 @@ class Trainer:
         self.critic_optim = Adam(self.critic.parameters(), lr=2e-3)
 
         # Scheduler
-        # self.scheduler = lr_scheduler.StepLR(
-        #     self.optim, step_size=self.lr_decay_every, gamma=self.lr_decay
-        # )
+        self.actor_scheduler = lr_scheduler.StepLR(
+            self.actor_optim, step_size=self.lr_decay_every, gamma=self.lr_decay
+        )
+        self.critic_scheduler = lr_scheduler.StepLR(
+            self.critic_optim, step_size=self.lr_decay_every, gamma=self.lr_decay
+        )
 
         # Critic loss
         self.critic_loss = nn.MSELoss()  # nn.SmoothL1Loss()
@@ -94,6 +97,10 @@ class Trainer:
 
         # Neptune
         self.neptune = neptune
+
+        # Clip decay
+        self.clip_decay = 1.0
+        self.clip_min = 0.2
 
     def eval_mode(self):
         self.actor.eval()
@@ -175,10 +182,14 @@ class Trainer:
                 self.neptune["actor loss"].log(actor_loss)
                 self.neptune["critic loss"].log(critic_loss)
 
-        # self.scheduler.step()
+        # Hyperparams decaying
+        self.actor_scheduler.step()
+        self.critic_scheduler.step()
         self.entropy_regularization = max(
             0.0, self.entropy_regularization * self.entropy_regularization_decay
         )
+        self.clip = max(self.clip_min, self.clip * self.clip_decay)
+
         if self.neptune is not None:
             # self.neptune["lr"].log(self.scheduler.get_last_lr())
             self.neptune["entropy coeff"].log(self.entropy_regularization)

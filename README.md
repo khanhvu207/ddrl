@@ -29,7 +29,7 @@ Future plan:
 - [ ] A wrapper for custom environments aparts from OpenAI gym.
 - [ ] A wrapper for custom choices of networks (like shared network for Actor-Critic, ConvNet-based networks, ...).
 
-## Bechmarks
+## Benchmarks
 
 ### OpenAI Gym  
 ![LunarLanderContinuous-v2](docs/result.png)

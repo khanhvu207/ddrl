@@ -28,6 +28,7 @@ Future plan:
 - [ ] Add [UPGO](https://deepmind.com/blog/article/AlphaStar-Grandmaster-level-in-StarCraft-II-using-multi-agent-reinforcement-learning).
 - [ ] A wrapper for custom environments aparts from OpenAI gym.
 - [ ] A wrapper for custom choices of networks (like shared network for Actor-Critic, ConvNet-based networks, ...).
+- [ ] [PopArt](https://arxiv.org/abs/1809.04474).
 
 ## Benchmarks
 

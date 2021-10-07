@@ -36,7 +36,7 @@ opencv-python==4.5.2.52
 packaging==20.9
 pandas==1.2.5
 pathspec==0.8.1
-Pillow==8.2.0
+Pillow==8.3.2
 psutil==5.8.0
 pycparser==2.20
 pyglet==1.5.15
